@@ -70,12 +70,12 @@ const equipmentBookingService = {
     return allBookings;
   },
 
-  // 获取特定预约的详细信息
+  // 获取特定预约的详细信息（LEFT JOIN 保证即使器材被删除也能查到预约）
   async getBookingById(bookingId) {
     const [rows] = await db.execute(
       `SELECT eb.*, e.equipment_name, e.equipment_location 
        FROM equipment_booking eb
-       JOIN equipment e ON eb.equipment_id = e.equipment_id
+       LEFT JOIN equipment e ON eb.equipment_id = e.equipment_id
        WHERE eb.booking_id = ?`,
       [bookingId]
     );
@@ -261,15 +261,32 @@ const equipmentBookingService = {
     return rows;
   },
 
-  // 获取预约的所有训练会话（每次“完成”为一条会话，用于固定展示历史）
+  // 获取预约的所有训练会话（含 status：confirmed 仅完成列可编辑，completed 完全只读）
   async getTrainingSessionsByBooking(bookingId) {
-    const [sessions] = await db.execute(
-      `SELECT session_id, booking_id, created_at
-       FROM equipment_training_session
-       WHERE booking_id = ?
-       ORDER BY created_at DESC`,
-      [bookingId]
-    );
+    let sessions;
+    try {
+      const [rows] = await db.execute(
+        `SELECT session_id, booking_id, created_at, COALESCE(status, 'completed') as status
+         FROM equipment_training_session
+         WHERE booking_id = ?
+         ORDER BY created_at DESC`,
+        [bookingId]
+      );
+      sessions = rows;
+    } catch (err) {
+      if (err.message && err.message.includes('status')) {
+        const [rows] = await db.execute(
+          `SELECT session_id, booking_id, created_at
+           FROM equipment_training_session
+           WHERE booking_id = ?
+           ORDER BY created_at DESC`,
+          [bookingId]
+        );
+        sessions = rows.map((s) => ({ ...s, status: 'completed' }));
+      } else {
+        throw err;
+      }
+    }
 
     const result = [];
     for (const s of sessions) {
@@ -280,10 +297,15 @@ const equipmentBookingService = {
          ORDER BY set_number ASC`,
         [s.session_id]
       );
-      result.push({ session_id: s.session_id, created_at: s.created_at, records });
+      result.push({
+        session_id: s.session_id,
+        created_at: s.created_at,
+        status: s.status || 'completed',
+        records
+      });
     }
 
-    // 兼容旧数据：无 session_id 的记录视为一条“历史会话”
+    // 兼容旧数据：无 session_id 的记录视为一条“历史会话”（完全只读）
     const [legacy] = await db.execute(
       `SELECT record_id, set_number, weight, repetitions, completed, exercise_name, created_at
        FROM equipment_training_record
@@ -293,21 +315,35 @@ const equipmentBookingService = {
     );
     if (legacy.length > 0) {
       const created_at = legacy[0].created_at || null;
-      result.push({ session_id: null, created_at, records: legacy });
+      result.push({ session_id: null, created_at, status: 'completed', records: legacy });
     }
 
     return result;
   },
 
-  // 保存预约的训练记录（新建一条会话，不删除历史）
-  async saveTrainingRecords(bookingId, records) {
+  // 保存预约的训练记录（新建一条会话；fullyComplete=true 为“完成”，false 为“确认计划”）
+  async saveTrainingRecords(bookingId, records, fullyComplete = true) {
     if (!records || records.length === 0) return [];
 
-    const [sessionResult] = await db.execute(
-      'INSERT INTO equipment_training_session (booking_id) VALUES (?)',
-      [bookingId]
-    );
-    const sessionId = sessionResult.insertId;
+    let sessionId;
+    const status = fullyComplete ? 'completed' : 'confirmed';
+    try {
+      const [sessionResult] = await db.execute(
+        'INSERT INTO equipment_training_session (booking_id, status) VALUES (?, ?)',
+        [bookingId, status]
+      );
+      sessionId = sessionResult.insertId;
+    } catch (err) {
+      if (err.message && err.message.includes('status')) {
+        const [sessionResult] = await db.execute(
+          'INSERT INTO equipment_training_session (booking_id) VALUES (?)',
+          [bookingId]
+        );
+        sessionId = sessionResult.insertId;
+      } else {
+        throw err;
+      }
+    }
 
     const inserted = [];
     for (const r of records) {
@@ -327,6 +363,50 @@ const equipmentBookingService = {
       inserted.push({ ...r, session_id: sessionId });
     }
     return inserted;
+  },
+
+  // 更新某条记录的“完成”勾选（属于 equipment_training_session 的会话即可编辑）
+  async updateRecordCompleted(recordId, completed) {
+    const [rows] = await db.execute(
+      `SELECT r.record_id FROM equipment_training_record r
+       INNER JOIN equipment_training_session s ON r.session_id = s.session_id
+       WHERE r.record_id = ?`,
+      [recordId]
+    );
+    if (rows.length === 0) {
+      throw new Error('记录不存在');
+    }
+    await db.execute(
+      'UPDATE equipment_training_record SET completed = ? WHERE record_id = ?',
+      [completed ? 1 : 0, recordId]
+    );
+    return true;
+  },
+
+  // 将会话从“确认计划”改为“完成”（彻底固定为不可编辑）
+  async completeSession(sessionId) {
+    const [result] = await db.execute(
+      "UPDATE equipment_training_session SET status = 'completed' WHERE session_id = ? AND status = 'confirmed'",
+      [sessionId]
+    );
+    if (result.affectedRows === 0) {
+      throw new Error('会话不存在或已锁定');
+    }
+    return true;
+  },
+
+  // 删除训练计划会话（删除该会话及其所有记录）
+  async deleteTrainingSession(sessionId) {
+    const [sessions] = await db.execute(
+      'SELECT session_id FROM equipment_training_session WHERE session_id = ?',
+      [sessionId]
+    );
+    if (sessions.length === 0) {
+      throw new Error('会话不存在');
+    }
+    await db.execute('DELETE FROM equipment_training_record WHERE session_id = ?', [sessionId]);
+    await db.execute('DELETE FROM equipment_training_session WHERE session_id = ?', [sessionId]);
+    return true;
   }
 };
 

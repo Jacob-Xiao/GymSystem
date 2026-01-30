@@ -14,13 +14,16 @@ CREATE TABLE IF NOT EXISTS `equipment_training_record` (
   INDEX `idx_session_id` (`session_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8 COLLATE = utf8_general_ci COMMENT = '器材预约训练记录表' ROW_FORMAT = Compact;
 
--- 器材预约训练会话表（每次点击“完成”生成一条会话，用于固定展示历史）
+-- 器材预约训练会话表（每次“确认计划”或“完成”生成一条会话）
+-- status: confirmed=确认计划（仅完成列可编辑），completed=完成（完全只读）
 CREATE TABLE IF NOT EXISTS `equipment_training_session` (
   `session_id` int NOT NULL AUTO_INCREMENT COMMENT '会话ID',
   `booking_id` int NOT NULL COMMENT '预约ID',
+  `status` varchar(20) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'completed' COMMENT 'confirmed-确认计划, completed-完成',
   `created_at` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '完成时间',
   PRIMARY KEY (`session_id`) USING BTREE,
   INDEX `idx_booking_id` (`booking_id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8 COLLATE = utf8_general_ci COMMENT = '器材预约训练会话表' ROW_FORMAT = Compact;
 
 -- 若表已存在且无 session_id，可执行：ALTER TABLE equipment_training_record ADD COLUMN session_id int NULL DEFAULT NULL AFTER booking_id;
+-- 若 equipment_training_session 已存在且无 status，可执行：ALTER TABLE equipment_training_session ADD COLUMN status varchar(20) NOT NULL DEFAULT 'completed' AFTER booking_id;

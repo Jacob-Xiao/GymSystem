@@ -24,12 +24,16 @@ router.get('/equipment/:equipmentId/bookings', async (req, res) => {
   }
 });
 
-// 获取会员的预约列表
+// 获取会员的预约列表（显式带上 bookingId 便于前端详情页使用）
 router.get('/member/:memberAccount/bookings', async (req, res) => {
   try {
     const memberAccount = parseInt(req.params.memberAccount);
     const bookings = await equipmentBookingService.getBookingsByMember(memberAccount);
-    res.json({ success: true, data: bookings });
+    const list = bookings.map((b) => ({ ...b, bookingId: b.booking_id }));
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'equipmentBooking.js:list', message: 'member bookings list', data: { memberAccount, count: list.length, bookingIds: list.map((b) => b.booking_id ?? b.bookingId) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
+    // #endregion
+    res.json({ success: true, data: list });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -38,20 +42,40 @@ router.get('/member/:memberAccount/bookings', async (req, res) => {
 // 获取预约详情
 router.get('/booking/:bookingId', async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.bookingId);
+    const rawParam = req.params.bookingId;
+    const bookingId = parseInt(rawParam, 10);
+    // #region agent log
+    if (Number.isNaN(bookingId)) {
+      fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'equipmentBooking.js:detail', message: 'detail request NaN', data: { rawParam, bookingId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
+    }
+    // #endregion
+    if (Number.isNaN(bookingId)) {
+      return res.status(400).json({ success: false, message: '预约ID无效' });
+    }
     const booking = await equipmentBookingService.getBookingById(bookingId);
-    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'equipmentBooking.js:detail', message: 'getBookingById result', data: { rawParam, bookingId, found: !!booking }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
     if (!booking) {
       return res.status(404).json({ success: false, message: '预约不存在' });
     }
 
-    // 获取分享请求
-    const shareRequests = await equipmentBookingService.getShareRequestsByBooking(bookingId);
-    // 获取训练会话列表（每次“完成”为一条，用于固定展示）
-    const trainingSessions = await equipmentBookingService.getTrainingSessionsByBooking(bookingId);
-    
-    res.json({ 
-      success: true, 
+    // 获取分享请求与训练会话（任一项失败也不影响返回预约详情，用空数组兜底）
+    let shareRequests = [];
+    let trainingSessions = [];
+    try {
+      shareRequests = await equipmentBookingService.getShareRequestsByBooking(bookingId);
+    } catch (e) {
+      // 忽略，使用 []
+    }
+    try {
+      trainingSessions = await equipmentBookingService.getTrainingSessionsByBooking(bookingId);
+    } catch (e) {
+      // 忽略，使用 []
+    }
+
+    res.json({
+      success: true,
       data: {
         ...booking,
         shareRequests,
@@ -63,21 +87,55 @@ router.get('/booking/:bookingId', async (req, res) => {
   }
 });
 
-// 保存预约的训练记录
+// 保存预约的训练记录（确认计划 或 完成）
 router.post('/booking/:bookingId/training-records', async (req, res) => {
   try {
     const bookingId = parseInt(req.params.bookingId);
-    const { records } = req.body;
+    const { records, fullyComplete = true } = req.body;
 
     const booking = await equipmentBookingService.getBookingById(bookingId);
     if (!booking) {
       return res.status(404).json({ success: false, message: '预约不存在' });
     }
 
-    const saved = await equipmentBookingService.saveTrainingRecords(bookingId, records || []);
+    const saved = await equipmentBookingService.saveTrainingRecords(bookingId, records || [], fullyComplete);
     res.json({ success: true, message: '训练记录已保存', data: { records: saved } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 更新某条训练记录的“完成”勾选（仅 status=confirmed 的会话可改）
+router.patch('/training-records/record/:recordId/completed', async (req, res) => {
+  try {
+    const recordId = parseInt(req.params.recordId);
+    const { completed } = req.body;
+    await equipmentBookingService.updateRecordCompleted(recordId, !!completed);
+    res.json({ success: true, message: '已更新' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// 将会话从“确认计划”改为“完成”（彻底固定）
+router.post('/booking/:bookingId/session/:sessionId/complete', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.sessionId);
+    await equipmentBookingService.completeSession(sessionId);
+    res.json({ success: true, message: '已固定为完成' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// 删除训练计划会话（删除该模块）
+router.delete('/booking/:bookingId/session/:sessionId', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.sessionId);
+    await equipmentBookingService.deleteTrainingSession(sessionId);
+    res.json({ success: true, message: '已删除' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
 });
 

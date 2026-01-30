@@ -199,23 +199,26 @@ const UserMain = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {bookings.slice(0, 5).map((booking) => (
-                          <tr key={booking.booking_id}>
-                            <td>{booking.equipment_name}</td>
-                            <td>{booking.equipment_location}</td>
-                            <td>{formatDateTime(booking.start_time)}</td>
-                            <td>{formatDateTime(booking.end_time)}</td>
-                            <td>{booking.location_note || '-'}</td>
-                            <td>
-                              <Link
-                                to={`/user/equipment-booking/detail/${booking.booking_id}/${member.memberAccount}`}
-                                className="btn btn-sm btn-primary"
-                              >
-                                查看详情
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
+                        {bookings.slice(0, 5).map((booking) => {
+                          const id = booking.booking_id ?? booking.bookingId;
+                          return (
+                            <tr key={id}>
+                              <td>{booking.equipment_name}</td>
+                              <td>{booking.equipment_location}</td>
+                              <td>{formatDateTime(booking.start_time)}</td>
+                              <td>{formatDateTime(booking.end_time)}</td>
+                              <td>{booking.location_note || '-'}</td>
+                              <td>
+                                <Link
+                                  to={`/user/equipment-booking/detail/${id}/${member.memberAccount}`}
+                                  className="btn btn-sm btn-primary"
+                                >
+                                  查看详情
+                                </Link>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                     {bookings.length > 5 && (

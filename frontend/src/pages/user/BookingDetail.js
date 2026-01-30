@@ -28,6 +28,7 @@ const BookingDetail = () => {
   }, [bookingId]);
 
   const fetchBookingDetail = async () => {
+    setMessage('');
     try {
       const response = await equipmentBookingAPI.getBookingDetail(bookingId);
       if (response.data.success) {
@@ -36,9 +37,14 @@ const BookingDetail = () => {
         setShareRequests(data.shareRequests || []);
         setTrainingSessions(data.trainingSessions || []);
         setTrainingRows([createEmptyRow(1)]); // 可编辑区始终从新的一行开始
+      } else {
+        setBooking(null);
+        setMessage(response.data.message || '加载失败');
       }
     } catch (error) {
       console.error('Error fetching booking detail:', error);
+      setBooking(null);
+      setMessage(error.response?.data?.message || '预约不存在');
     } finally {
       setLoading(false);
     }
@@ -81,13 +87,44 @@ const BookingDetail = () => {
         completed: r.completed,
         exercise_name: String(r.exerciseName).trim()
       }));
-      await equipmentBookingAPI.saveTrainingRecords(bookingId, records);
-      setMessage('训练记录已保存');
+      await equipmentBookingAPI.saveTrainingRecords(bookingId, records, false); // 确认计划，第四列完成可编辑
+      setMessage('训练计划已确认');
       fetchBookingDetail();
     } catch (error) {
       setMessage(error.response?.data?.message || '保存失败');
     } finally {
       setSavingRecords(false);
+    }
+  };
+
+  const handleDeleteTrainingSession = async (sessionId) => {
+    if (!window.confirm('确定要删除该训练计划吗？')) return;
+    try {
+      await equipmentBookingAPI.deleteTrainingSession(bookingId, sessionId);
+      setMessage('已删除');
+      fetchBookingDetail();
+    } catch (error) {
+      setMessage(error.response?.data?.message || '删除失败');
+    }
+  };
+
+  const handleToggleRecordCompleted = async (recordId, completed) => {
+    try {
+      await equipmentBookingAPI.updateRecordCompleted(recordId, completed);
+      setTrainingSessions((prev) =>
+        prev.map((s) =>
+          s.session_id
+            ? {
+                ...s,
+                records: (s.records || []).map((r) =>
+                  r.record_id === recordId ? { ...r, completed } : r
+                )
+              }
+            : s
+        )
+      );
+    } catch (error) {
+      setMessage(error.response?.data?.message || '更新失败');
     }
   };
 
@@ -118,7 +155,8 @@ const BookingDetail = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="alert alert-danger">预约不存在</div>
+          <div className="alert alert-danger">{message || '预约不存在'}</div>
+          <Link to="/user/main" className="btn btn-secondary">返回主页</Link>
         </div>
       </UserLayout>
     );
@@ -286,52 +324,76 @@ const BookingDetail = () => {
           </div>
         </div>
 
-        {/* 已保存的训练计划/记录（固定模板，只读） */}
-        {trainingSessions.map((session, idx) => (
-          <div key={session.session_id ?? `legacy-${idx}`} className="card mt-4">
-            <div className="card-header bg-light">
-              <i className="bi bi-journal-check me-1"></i>
-              训练计划/记录（已完成）
-              {session.created_at && (
-                <span className="text-muted small ms-2">
-                  {formatDateTime(session.created_at)}
+        {/* 已保存的训练计划/记录：第四列完成可勾选（有 session_id 且 record_id 的会话） */}
+        {trainingSessions.map((session, idx) => {
+          const key = session.session_id ?? `legacy-${idx}`;
+          const canEditCompleted = !!session.session_id; // 有 session_id 的会话，完成列可编辑
+          return (
+            <div key={key} className="card mt-4">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center flex-wrap">
+                <span>
+                  <i className="bi bi-journal-check me-1"></i>
+                  训练计划/记录
+                  {session.created_at && (
+                    <span className="text-muted small ms-2">
+                      {formatDateTime(session.created_at)}
+                    </span>
+                  )}
                 </span>
-              )}
-            </div>
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-bordered align-middle mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ width: '80px' }}>组数</th>
-                      <th>重量</th>
-                      <th>重复次数</th>
-                      <th style={{ width: '80px' }}>完成</th>
-                      <th>训练动作名称</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(session.records || []).map((r, i) => (
-                      <tr key={i}>
-                        <td className="text-center">{r.set_number}</td>
-                        <td>{r.weight ?? '-'}</td>
-                        <td>{r.repetitions ?? '-'}</td>
-                        <td className="text-center">
-                          {r.completed ? (
-                            <span className="text-success"><i className="bi bi-check-lg"></i></span>
-                          ) : (
-                            <span className="text-muted"><i className="bi bi-circle"></i></span>
-                          )}
-                        </td>
-                        <td>{r.exercise_name ?? '-'}</td>
+                {session.session_id && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger btn-sm"
+                    onClick={() => handleDeleteTrainingSession(session.session_id)}
+                  >
+                    删除计划
+                  </button>
+                )}
+              </div>
+              <div className="card-body">
+                <div className="table-responsive">
+                  <table className="table table-bordered align-middle mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th style={{ width: '80px' }}>组数</th>
+                        <th>重量</th>
+                        <th>重复次数</th>
+                        <th style={{ width: '80px' }}>完成</th>
+                        <th>训练动作名称</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {(session.records || []).map((r, i) => (
+                        <tr key={r.record_id ?? i}>
+                          <td className="text-center">{r.set_number}</td>
+                          <td>{r.weight ?? '-'}</td>
+                          <td>{r.repetitions ?? '-'}</td>
+                          <td className="text-center">
+                            {canEditCompleted && r.record_id ? (
+                              <button
+                                type="button"
+                                className={`btn btn-sm ${r.completed ? 'btn-success' : 'btn-outline-secondary'}`}
+                                onClick={() => handleToggleRecordCompleted(r.record_id, !r.completed)}
+                                title={r.completed ? '已完成' : '点击标记完成'}
+                              >
+                                <i className={`bi ${r.completed ? 'bi-check-lg' : 'bi-circle'}`}></i>
+                              </button>
+                            ) : r.completed ? (
+                              <span className="text-success"><i className="bi bi-check-lg"></i></span>
+                            ) : (
+                              <span className="text-muted"><i className="bi bi-circle"></i></span>
+                            )}
+                          </td>
+                          <td>{r.exercise_name ?? '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* 新的可编辑训练计划/记录 */}
         <div className="card mt-4">
@@ -342,11 +404,11 @@ const BookingDetail = () => {
             </span>
             <button
               type="button"
-              className="btn btn-success btn-sm"
+              className="btn btn-primary btn-sm"
               onClick={handleSaveTrainingRecords}
               disabled={savingRecords}
             >
-              {savingRecords ? '保存中...' : '完成'}
+              {savingRecords ? '保存中...' : '确认计划'}
             </button>
           </div>
           <div className="card-body">
