@@ -47,22 +47,15 @@ router.get('/booking/:bookingId', async (req, res) => {
 
     // 获取分享请求
     const shareRequests = await equipmentBookingService.getShareRequestsByBooking(bookingId);
-<<<<<<< HEAD
     // 获取训练会话列表（每次“完成”为一条，用于固定展示）
     const trainingSessions = await equipmentBookingService.getTrainingSessionsByBooking(bookingId);
-=======
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
     
     res.json({ 
       success: true, 
       data: {
         ...booking,
-<<<<<<< HEAD
         shareRequests,
         trainingSessions
-=======
-        shareRequests
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
       }
     });
   } catch (error) {
@@ -70,7 +63,6 @@ router.get('/booking/:bookingId', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 // 保存预约的训练记录
 router.post('/booking/:bookingId/training-records', async (req, res) => {
   try {
@@ -89,8 +81,6 @@ router.post('/booking/:bookingId/training-records', async (req, res) => {
   }
 });
 
-=======
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
 // 创建预约
 router.post('/booking/create', async (req, res) => {
   try {

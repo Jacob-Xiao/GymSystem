@@ -247,7 +247,6 @@ const equipmentBookingService = {
       [requesterAccount]
     );
     return rows;
-<<<<<<< HEAD
   },
 
   // 获取预约的训练记录（旧接口，返回扁平列表，兼容旧逻辑）
@@ -328,8 +327,6 @@ const equipmentBookingService = {
       inserted.push({ ...r, session_id: sessionId });
     }
     return inserted;
-=======
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
   }
 };
 

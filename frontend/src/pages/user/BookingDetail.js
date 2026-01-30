@@ -3,7 +3,6 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { equipmentBookingAPI } from '../../services/api';
 
-<<<<<<< HEAD
 // 单行训练记录结构：组数、重量、重复次数、是否完成、训练动作名称
 const createEmptyRow = (setNumber) => ({
   setNumber,
@@ -13,23 +12,16 @@ const createEmptyRow = (setNumber) => ({
   exerciseName: ''
 });
 
-=======
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
 const BookingDetail = () => {
   const navigate = useNavigate();
   const { bookingId, memberAccount } = useParams();
   const [booking, setBooking] = useState(null);
   const [shareRequests, setShareRequests] = useState([]);
-<<<<<<< HEAD
   const [trainingSessions, setTrainingSessions] = useState([]); // 已保存的固定模板（只读）
   const [trainingRows, setTrainingRows] = useState([createEmptyRow(1)]); // 当前可编辑的新记录
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [savingRecords, setSavingRecords] = useState(false);
-=======
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
 
   useEffect(() => {
     fetchBookingDetail();
@@ -39,16 +31,11 @@ const BookingDetail = () => {
     try {
       const response = await equipmentBookingAPI.getBookingDetail(bookingId);
       if (response.data.success) {
-<<<<<<< HEAD
         const data = response.data.data;
         setBooking(data);
         setShareRequests(data.shareRequests || []);
         setTrainingSessions(data.trainingSessions || []);
         setTrainingRows([createEmptyRow(1)]); // 可编辑区始终从新的一行开始
-=======
-        setBooking(response.data.data);
-        setShareRequests(response.data.data.shareRequests || []);
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
       }
     } catch (error) {
       console.error('Error fetching booking detail:', error);
@@ -67,7 +54,6 @@ const BookingDetail = () => {
     }
   };
 
-<<<<<<< HEAD
   const addTrainingRow = () => {
     const nextSet = trainingRows.length + 1;
     setTrainingRows([...trainingRows, createEmptyRow(nextSet)]);
@@ -105,8 +91,6 @@ const BookingDetail = () => {
     }
   };
 
-=======
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
   const formatDateTime = (dateTimeString) => {
     const date = new Date(dateTimeString);
     return date.toLocaleString('zh-CN', {
@@ -302,7 +286,6 @@ const BookingDetail = () => {
           </div>
         </div>
 
-<<<<<<< HEAD
         {/* 已保存的训练计划/记录（固定模板，只读） */}
         {trainingSessions.map((session, idx) => (
           <div key={session.session_id ?? `legacy-${idx}`} className="card mt-4">
@@ -436,8 +419,6 @@ const BookingDetail = () => {
           </div>
         </div>
 
-=======
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
         {/* 分享请求历史 */}
         {shareRequests.length > 0 && (
           <div className="card mt-4">

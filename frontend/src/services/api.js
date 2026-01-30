@@ -70,11 +70,8 @@ export const equipmentBookingAPI = {
   getEquipmentBookings: (equipmentId) => api.get(`/equipment-booking/equipment/${equipmentId}/bookings`),
   getMemberBookings: (memberAccount) => api.get(`/equipment-booking/member/${memberAccount}/bookings`),
   getBookingDetail: (bookingId) => api.get(`/equipment-booking/booking/${bookingId}`),
-<<<<<<< HEAD
   saveTrainingRecords: (bookingId, records) =>
     api.post(`/equipment-booking/booking/${bookingId}/training-records`, { records }),
-=======
->>>>>>> a749d3276ce155fbc74c959ecfae055ceee5008a
   createBooking: (booking) => api.post('/equipment-booking/booking/create', booking),
   cancelBooking: (bookingId, memberAccount) => 
     api.delete(`/equipment-booking/booking/${bookingId}/member/${memberAccount}`),
