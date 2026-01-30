@@ -321,8 +321,15 @@ const equipmentBookingService = {
     return result;
   },
 
-  // 保存预约的训练记录（新建一条会话；fullyComplete=true 为“完成”，false 为“确认计划”）
-  async saveTrainingRecords(bookingId, records, fullyComplete = true) {
+  // 保存预约的训练记录（仅预约所有者可操作；fullyComplete=true 为“完成”，false 为“确认计划”）
+  async saveTrainingRecords(bookingId, records, fullyComplete = true, memberAccount) {
+    const booking = await this.getBookingById(bookingId);
+    if (!booking) {
+      throw new Error('预约不存在');
+    }
+    if (parseInt(booking.member_account) !== parseInt(memberAccount)) {
+      throw new Error('仅预约所有者可添加训练计划');
+    }
     if (!records || records.length === 0) return [];
 
     let sessionId;
@@ -365,16 +372,20 @@ const equipmentBookingService = {
     return inserted;
   },
 
-  // 更新某条记录的“完成”勾选（属于 equipment_training_session 的会话即可编辑）
-  async updateRecordCompleted(recordId, completed) {
+  // 更新某条记录的“完成”勾选（仅预约所有者可操作）
+  async updateRecordCompleted(recordId, completed, memberAccount) {
     const [rows] = await db.execute(
-      `SELECT r.record_id FROM equipment_training_record r
+      `SELECT eb.member_account FROM equipment_training_record r
        INNER JOIN equipment_training_session s ON r.session_id = s.session_id
+       INNER JOIN equipment_booking eb ON s.booking_id = eb.booking_id
        WHERE r.record_id = ?`,
       [recordId]
     );
     if (rows.length === 0) {
       throw new Error('记录不存在');
+    }
+    if (parseInt(rows[0].member_account) !== parseInt(memberAccount)) {
+      throw new Error('仅预约所有者可修改训练计划');
     }
     await db.execute(
       'UPDATE equipment_training_record SET completed = ? WHERE record_id = ?',
@@ -395,14 +406,19 @@ const equipmentBookingService = {
     return true;
   },
 
-  // 删除训练计划会话（删除该会话及其所有记录）
-  async deleteTrainingSession(sessionId) {
+  // 删除训练计划会话（仅预约所有者可操作）
+  async deleteTrainingSession(sessionId, memberAccount) {
     const [sessions] = await db.execute(
-      'SELECT session_id FROM equipment_training_session WHERE session_id = ?',
+      `SELECT s.session_id, eb.member_account FROM equipment_training_session s
+       INNER JOIN equipment_booking eb ON s.booking_id = eb.booking_id
+       WHERE s.session_id = ?`,
       [sessionId]
     );
     if (sessions.length === 0) {
       throw new Error('会话不存在');
+    }
+    if (parseInt(sessions[0].member_account) !== parseInt(memberAccount)) {
+      throw new Error('仅预约所有者可删除训练计划');
     }
     await db.execute('DELETE FROM equipment_training_record WHERE session_id = ?', [sessionId]);
     await db.execute('DELETE FROM equipment_training_session WHERE session_id = ?', [sessionId]);

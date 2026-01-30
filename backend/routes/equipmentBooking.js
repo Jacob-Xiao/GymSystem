@@ -87,33 +87,40 @@ router.get('/booking/:bookingId', async (req, res) => {
   }
 });
 
-// 保存预约的训练记录（确认计划 或 完成）
+// 保存预约的训练记录（仅预约所有者；确认计划 或 完成）
 router.post('/booking/:bookingId/training-records', async (req, res) => {
   try {
     const bookingId = parseInt(req.params.bookingId);
-    const { records, fullyComplete = true } = req.body;
+    const { records, fullyComplete = true, memberAccount } = req.body;
 
-    const booking = await equipmentBookingService.getBookingById(bookingId);
-    if (!booking) {
-      return res.status(404).json({ success: false, message: '预约不存在' });
+    if (!memberAccount) {
+      return res.status(400).json({ success: false, message: '缺少当前用户信息' });
     }
 
-    const saved = await equipmentBookingService.saveTrainingRecords(bookingId, records || [], fullyComplete);
+    const saved = await equipmentBookingService.saveTrainingRecords(
+      bookingId,
+      records || [],
+      fullyComplete,
+      memberAccount
+    );
     res.json({ success: true, message: '训练记录已保存', data: { records: saved } });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(403).json({ success: false, message: error.message });
   }
 });
 
-// 更新某条训练记录的“完成”勾选（仅 status=confirmed 的会话可改）
+// 更新某条训练记录的“完成”勾选（仅预约所有者可改）
 router.patch('/training-records/record/:recordId/completed', async (req, res) => {
   try {
     const recordId = parseInt(req.params.recordId);
-    const { completed } = req.body;
-    await equipmentBookingService.updateRecordCompleted(recordId, !!completed);
+    const { completed, memberAccount } = req.body;
+    if (!memberAccount) {
+      return res.status(400).json({ success: false, message: '缺少当前用户信息' });
+    }
+    await equipmentBookingService.updateRecordCompleted(recordId, !!completed, memberAccount);
     res.json({ success: true, message: '已更新' });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    res.status(403).json({ success: false, message: error.message });
   }
 });
 
@@ -128,14 +135,18 @@ router.post('/booking/:bookingId/session/:sessionId/complete', async (req, res) 
   }
 });
 
-// 删除训练计划会话（删除该模块）
+// 删除训练计划会话（仅预约所有者可删）
 router.delete('/booking/:bookingId/session/:sessionId', async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
-    await equipmentBookingService.deleteTrainingSession(sessionId);
+    const memberAccount = req.query.memberAccount || req.body.memberAccount;
+    if (!memberAccount) {
+      return res.status(400).json({ success: false, message: '缺少当前用户信息' });
+    }
+    await equipmentBookingService.deleteTrainingSession(sessionId, memberAccount);
     res.json({ success: true, message: '已删除' });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    res.status(403).json({ success: false, message: error.message });
   }
 });
 

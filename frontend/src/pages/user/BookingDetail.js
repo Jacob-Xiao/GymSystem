@@ -87,7 +87,12 @@ const BookingDetail = () => {
         completed: r.completed,
         exercise_name: String(r.exerciseName).trim()
       }));
-      await equipmentBookingAPI.saveTrainingRecords(bookingId, records, false); // 确认计划，第四列完成可编辑
+      await equipmentBookingAPI.saveTrainingRecords(
+        bookingId,
+        records,
+        false,
+        parseInt(memberAccount)
+      ); // 确认计划，第四列完成可编辑
       setMessage('训练计划已确认');
       fetchBookingDetail();
     } catch (error) {
@@ -100,7 +105,7 @@ const BookingDetail = () => {
   const handleDeleteTrainingSession = async (sessionId) => {
     if (!window.confirm('确定要删除该训练计划吗？')) return;
     try {
-      await equipmentBookingAPI.deleteTrainingSession(bookingId, sessionId);
+      await equipmentBookingAPI.deleteTrainingSession(bookingId, sessionId, parseInt(memberAccount));
       setMessage('已删除');
       fetchBookingDetail();
     } catch (error) {
@@ -110,7 +115,11 @@ const BookingDetail = () => {
 
   const handleToggleRecordCompleted = async (recordId, completed) => {
     try {
-      await equipmentBookingAPI.updateRecordCompleted(recordId, completed);
+      await equipmentBookingAPI.updateRecordCompleted(
+        recordId,
+        completed,
+        parseInt(memberAccount)
+      );
       setTrainingSessions((prev) =>
         prev.map((s) =>
           s.session_id
@@ -324,10 +333,10 @@ const BookingDetail = () => {
           </div>
         </div>
 
-        {/* 已保存的训练计划/记录：第四列完成可勾选（有 session_id 且 record_id 的会话） */}
+        {/* 已保存的训练计划/记录：仅预约所有者可编辑完成列和删除；非所有者仅可查看 */}
         {trainingSessions.map((session, idx) => {
           const key = session.session_id ?? `legacy-${idx}`;
-          const canEditCompleted = !!session.session_id; // 有 session_id 的会话，完成列可编辑
+          const canEditCompleted = isOwner && !!session.session_id; // 仅预约所有者可编辑完成列
           return (
             <div key={key} className="card mt-4">
               <div className="card-header bg-light d-flex justify-content-between align-items-center flex-wrap">
@@ -340,7 +349,7 @@ const BookingDetail = () => {
                     </span>
                   )}
                 </span>
-                {session.session_id && (
+                {isOwner && session.session_id && (
                   <button
                     type="button"
                     className="btn btn-outline-danger btn-sm"
@@ -395,7 +404,8 @@ const BookingDetail = () => {
           );
         })}
 
-        {/* 新的可编辑训练计划/记录 */}
+        {/* 新的可编辑训练计划/记录：仅预约所有者显示 */}
+        {isOwner && (
         <div className="card mt-4">
           <div className="card-header d-flex justify-content-between align-items-center flex-wrap">
             <span>
@@ -480,6 +490,7 @@ const BookingDetail = () => {
             </div>
           </div>
         </div>
+        )}
 
         {/* 分享请求历史 */}
         {shareRequests.length > 0 && (

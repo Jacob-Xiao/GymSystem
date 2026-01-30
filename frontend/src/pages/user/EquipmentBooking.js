@@ -202,14 +202,12 @@ const EquipmentBooking = () => {
                       <i className="bi bi-gear me-1"></i>
                       {selectedEquipment.equipment_name} - 预约信息
                     </div>
-                    {isEquipmentAvailable() && (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => setShowBookingForm(!showBookingForm)}
-                      >
-                        {showBookingForm ? '取消预约' : '新建预约'}
-                      </button>
-                    )}
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setShowBookingForm(!showBookingForm)}
+                    >
+                      {showBookingForm ? '取消预约' : '新建预约'}
+                    </button>
                   </div>
                 </div>
                 <div className="card-body">
