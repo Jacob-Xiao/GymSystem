@@ -1,22 +1,26 @@
 const db = require('../config/database');
+const cache = require('../config/cache');
 const adminService = require('./adminService');
 const memberService = require('./memberService');
+
+const DASHBOARD_CACHE_KEY = 'dashboard:stats';
+const DASHBOARD_TTL_MS = Number.parseInt(process.env.DASHBOARD_CACHE_TTL_MS, 10) || 30000;
 
 const loginService = {
   async adminLogin(adminAccount, adminPassword) {
     const admin = await adminService.findByAccount(adminAccount);
-    
+
     if (!admin) {
       return { success: false, message: '您输入的账号或密码有误，请重新输入！' };
     }
-    
+
     if (admin.admin_password !== adminPassword) {
       return { success: false, message: '您输入的账号或密码有误，请重新输入！' };
     }
-    
+
     // Get dashboard statistics
     const stats = await this.getAdminDashboardStats();
-    
+
     return {
       success: true,
       admin: {
@@ -28,15 +32,15 @@ const loginService = {
 
   async memberLogin(memberAccount, memberPassword) {
     const member = await memberService.findByAccount(memberAccount);
-    
+
     if (!member) {
       return { success: false, message: '您输入的账号或密码有误，请重新输入！' };
     }
-    
+
     if (member.member_password !== memberPassword) {
       return { success: false, message: '您输入的账号或密码有误，请重新输入！' };
     }
-    
+
     return {
       success: true,
       member: {
@@ -56,17 +60,25 @@ const loginService = {
     };
   },
 
+  // One round-trip instead of three, cached for a short TTL: the counters are a
+  // dashboard nicety, not a consistency-critical read, and stale-by-30s is acceptable.
   async getAdminDashboardStats() {
-    const [memberCount] = await db.execute('SELECT COUNT(*) as count FROM member');
-    const [employeeCount] = await db.execute('SELECT COUNT(*) as count FROM employee');
-    const [equipmentCount] = await db.execute('SELECT COUNT(*) as count FROM equipment');
-    
-    return {
-      memberTotal: memberCount[0].count,
-      employeeTotal: employeeCount[0].count,
-      humanTotal: memberCount[0].count + employeeCount[0].count,
-      equipmentTotal: equipmentCount[0].count
-    };
+    return cache.wrap(DASHBOARD_CACHE_KEY, DASHBOARD_TTL_MS, async () => {
+      const [rows] = await db.execute(
+        `SELECT
+           (SELECT COUNT(*) FROM member)    AS memberTotal,
+           (SELECT COUNT(*) FROM employee)  AS employeeTotal,
+           (SELECT COUNT(*) FROM equipment) AS equipmentTotal`
+      );
+
+      const row = rows[0];
+      return {
+        memberTotal: row.memberTotal,
+        employeeTotal: row.employeeTotal,
+        humanTotal: row.memberTotal + row.employeeTotal,
+        equipmentTotal: row.equipmentTotal
+      };
+    });
   }
 };
 
