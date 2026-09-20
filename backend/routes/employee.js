@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const employeeService = require('../services/employeeService');
+const { insertWithUniqueAccount } = require('../utils/uniqueAccount');
 
 // Get all employees
 router.get('/all', async (req, res) => {
@@ -30,16 +31,21 @@ router.get('/:account', async (req, res) => {
 router.post('/add', async (req, res) => {
   try {
     const employee = req.body;
-    
-    // Generate random account (1010 + 5 digits)
-    const account = 101000000 + Math.floor(Math.random() * 100000);
-    employee.employeeAccount = account;
-    
+
     // Set current date
     const now = new Date();
     employee.entryTime = now.toISOString().split('T')[0];
-    
-    await employeeService.insert(employee);
+
+    // Account is allocated here (1010 + 5 digits) and retried if the draw collides.
+    await insertWithUniqueAccount({
+      base: 101000000,
+      range: 100000,
+      insert: (account) => {
+        employee.employeeAccount = account;
+        return employeeService.insert(employee);
+      }
+    });
+
     res.json({ success: true, message: '员工添加成功' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

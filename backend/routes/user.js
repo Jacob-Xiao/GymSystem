@@ -20,29 +20,10 @@ router.get('/info/:account', async (req, res) => {
 
 // Update user info
 router.put('/info/update', async (req, res) => {
-  // #region agent log
-  const fs = require('fs');
-  const path = require('path');
-  const logPath = path.join(__dirname, '..', '..', '.cursor', 'debug.log');
-  const logData = {sessionId:'debug-session',runId:'run1',hypothesisId:'C',location:'routes/user.js:22',message:'Backend route: Received update request',data:{hasMemberPhoto:!!req.body.memberPhoto,memberPhotoLength:req.body.memberPhoto?req.body.memberPhoto.length:0,memberPhotoPrefix:req.body.memberPhoto?req.body.memberPhoto.substring(0,50):null,memberAccount:req.body.memberAccount,requestBodyKeys:Object.keys(req.body)},timestamp:Date.now()};
-  try { fs.appendFileSync(logPath, JSON.stringify(logData) + '\n'); } catch(e) {}
-  // #endregion
-
   try {
-    console.log('[DEBUG] Update request received, memberPhoto length:', req.body.memberPhoto ? req.body.memberPhoto.length : 0);
     await memberService.update(req.body);
-    // #region agent log
-    const logData2 = {sessionId:'debug-session',runId:'run1',hypothesisId:'C',location:'routes/user.js:32',message:'Backend route: Update service call succeeded',data:{},timestamp:Date.now()};
-    try { fs.appendFileSync(logPath, JSON.stringify(logData2) + '\n'); } catch(e) {}
-    // #endregion
-    console.log('[DEBUG] Update succeeded');
     res.json({ success: true, message: '个人信息更新成功' });
   } catch (error) {
-    // #region agent log
-    const logData3 = {sessionId:'debug-session',runId:'run1',hypothesisId:'B',location:'routes/user.js:40',message:'Backend route: Error caught',data:{errorMessage:error.message,errorCode:error.code,errorStack:error.stack?.substring(0,200)},timestamp:Date.now()};
-    try { fs.appendFileSync(logPath, JSON.stringify(logData3) + '\n'); } catch(e) {}
-    // #endregion
-    console.error('[DEBUG] Update error:', error.message, error.code);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -61,25 +42,26 @@ router.get('/classes/:account', async (req, res) => {
 router.post('/apply', async (req, res) => {
   try {
     const { classId, memberAccount } = req.body;
-    
-    // Check if already applied
+
+    // Fast path for the common case; the unique index on (class_id, member_account) is
+    // the authoritative guard when two requests race past this check.
     const existingOrder = await classOrderService.findByClassIdAndMemberAccount(classId, memberAccount);
     if (existingOrder) {
       return res.json({ success: false, message: '您已经报名了该课程' });
     }
-    
+
     // Get class info
     const classItem = await classService.findById(classId);
     if (!classItem) {
       return res.status(404).json({ success: false, message: '课程不存在' });
     }
-    
+
     // Get member info
     const member = await memberService.findByAccount(memberAccount);
     if (!member) {
       return res.status(404).json({ success: false, message: '会员不存在' });
     }
-    
+
     // Create order
     const classOrder = {
       classId: classItem.class_id,
@@ -89,8 +71,17 @@ router.post('/apply', async (req, res) => {
       memberAccount: member.member_account,
       classBegin: classItem.class_begin
     };
-    
-    await classOrderService.insert(classOrder);
+
+    try {
+      await classOrderService.insert(classOrder);
+    } catch (error) {
+      if (error.code === 'DUPLICATE_ENROLLMENT') {
+        // A concurrent request won the race; same user-visible outcome as the pre-check.
+        return res.json({ success: false, message: error.message });
+      }
+      throw error;
+    }
+
     res.json({ success: true, message: '报名成功' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

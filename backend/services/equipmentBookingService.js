@@ -1,34 +1,27 @@
 const db = require('../config/database');
+const cache = require('../config/cache');
+const schema = require('../config/schema');
+
+const EQUIPMENT_CACHE_PREFIX = 'equipment:';
+const AVAILABLE_TTL_MS = Number.parseInt(process.env.EQUIPMENT_CACHE_TTL_MS, 10) || 15000;
+
+// Same projection as the admin list: booking picks render name/location/status/message only.
+const AVAILABLE_EQUIPMENT_COLUMNS =
+  'equipment_id, equipment_name, equipment_location, equipment_status, equipment_message';
 
 const equipmentBookingService = {
   // 获取所有器材列表（用于预约，只显示状态为"正常"的）
   async getAllEquipment() {
-    const [rows] = await db.execute(
-      "SELECT * FROM equipment WHERE equipment_status = '正常' ORDER BY equipment_id"
-    );
-    return rows;
-  },
-
-  // 获取器材的预约信息（按时间范围）
-  async getBookingsByEquipmentAndTime(equipmentId, startTime, endTime) {
-    const [rows] = await db.execute(
-      `SELECT * FROM equipment_booking 
-       WHERE equipment_id = ? 
-       AND status = 'active'
-       AND (
-         (start_time <= ? AND end_time > ?) OR
-         (start_time < ? AND end_time >= ?) OR
-         (start_time >= ? AND end_time <= ?)
-       )
-       ORDER BY start_time`,
-      [equipmentId, startTime, startTime, endTime, endTime, startTime, endTime]
-    );
-    return rows;
+    return cache.wrap(`${EQUIPMENT_CACHE_PREFIX}available`, AVAILABLE_TTL_MS, async () => {
+      const [rows] = await db.execute(
+        `SELECT ${AVAILABLE_EQUIPMENT_COLUMNS} FROM equipment WHERE equipment_status = '正常' ORDER BY equipment_id`
+      );
+      return rows;
+    });
   },
 
   // 获取会员的所有预约（包括自己创建的以及通过接受分享请求获得的）
   async getBookingsByMember(memberAccount) {
-    // 获取用户自己创建的预约
     const [ownBookings] = await db.execute(
       `SELECT eb.*, e.equipment_name, e.equipment_location, 'owner' as booking_type
        FROM equipment_booking eb
@@ -38,8 +31,6 @@ const equipmentBookingService = {
       [memberAccount]
     );
 
-    // 获取用户通过接受分享请求获得的预约
-    // 注意：当其他用户接受了用户发送的分享请求时，该用户作为requester_account应该能看到这个预约
     const [sharedBookings] = await db.execute(
       `SELECT eb.*, e.equipment_name, e.equipment_location, 'shared' as booking_type
        FROM equipment_share_request esr
@@ -54,16 +45,15 @@ const equipmentBookingService = {
 
     // 合并结果并去重（基于booking_id）
     const bookingMap = new Map();
-    
-    ownBookings.forEach(booking => {
-      bookingMap.set(booking.booking_id, booking);
-    });
-    
-    sharedBookings.forEach(booking => {
+
+    ownBookings.forEach((booking) => {
       bookingMap.set(booking.booking_id, booking);
     });
 
-    // 转换为数组并按时间排序
+    sharedBookings.forEach((booking) => {
+      bookingMap.set(booking.booking_id, booking);
+    });
+
     const allBookings = Array.from(bookingMap.values());
     allBookings.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
 
@@ -83,6 +73,11 @@ const equipmentBookingService = {
   },
 
   // 创建预约
+  //
+  // The original implementation ran a conflict SELECT and then a separate INSERT with no
+  // transaction, so two concurrent requests for the same slot could both pass the check
+  // and double-book the equipment. The equipment row is now locked for the duration of
+  // the check + insert; bookings for different equipment still run in parallel.
   async createBooking(booking) {
     const {
       equipmentId,
@@ -93,20 +88,42 @@ const equipmentBookingService = {
       locationNote
     } = booking;
 
-    // 检查时间冲突
-    const conflicts = await this.getBookingsByEquipmentAndTime(equipmentId, startTime, endTime);
-    if (conflicts.length > 0) {
-      throw new Error('该时间段已被预约，请选择其他时间');
-    }
+    return db.withTransaction(async (connection) => {
+      const [equipment] = await connection.execute(
+        'SELECT equipment_id FROM equipment WHERE equipment_id = ? FOR UPDATE',
+        [equipmentId]
+      );
 
-    const [result] = await db.execute(
-      `INSERT INTO equipment_booking 
-       (equipment_id, member_account, member_name, start_time, end_time, location_note, status) 
-       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-      [equipmentId, memberAccount, memberName, startTime, endTime, locationNote || '']
-    );
+      if (equipment.length === 0) {
+        throw new Error('器材不存在');
+      }
 
-    return result.insertId;
+      // Standard half-open interval overlap: existing [start,end) intersects [s,e)
+      // exactly when start < e AND end > s. Equivalent to the previous three-branch
+      // predicate but index-friendly.
+      const [conflicts] = await connection.execute(
+        `SELECT booking_id FROM equipment_booking
+          WHERE equipment_id = ?
+            AND status = 'active'
+            AND start_time < ?
+            AND end_time > ?
+          LIMIT 1`,
+        [equipmentId, endTime, startTime]
+      );
+
+      if (conflicts.length > 0) {
+        throw new Error('该时间段已被预约，请选择其他时间');
+      }
+
+      const [result] = await connection.execute(
+        `INSERT INTO equipment_booking 
+         (equipment_id, member_account, member_name, start_time, end_time, location_note, status) 
+         VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+        [equipmentId, memberAccount, memberName, startTime, endTime, locationNote || '']
+      );
+
+      return result.insertId;
+    });
   },
 
   // 取消预约
@@ -137,36 +154,43 @@ const equipmentBookingService = {
   },
 
   // 创建分享请求
+  //
+  // Locks the booking row so the "already pending?" check and the insert are atomic;
+  // previously two simultaneous submissions could both create a pending request.
   async createShareRequest(bookingId, requesterAccount, requesterName) {
-    // 检查是否已经存在pending的请求
-    const [existing] = await db.execute(
-      `SELECT * FROM equipment_share_request 
-       WHERE booking_id = ? AND requester_account = ? AND status = 'pending'`,
-      [bookingId, requesterAccount]
-    );
+    return db.withTransaction(async (connection) => {
+      const [bookings] = await connection.execute(
+        `SELECT booking_id, member_account, status FROM equipment_booking WHERE booking_id = ? FOR UPDATE`,
+        [bookingId]
+      );
 
-    if (existing.length > 0) {
-      throw new Error('您已经提交过分享请求，请等待处理');
-    }
+      if (bookings.length === 0 || bookings[0].status !== 'active') {
+        throw new Error('预约不存在或已失效');
+      }
 
-    // 检查预约是否存在且有效
-    const booking = await this.getBookingById(bookingId);
-    if (!booking || booking.status !== 'active') {
-      throw new Error('预约不存在或已失效');
-    }
+      if (parseInt(bookings[0].member_account, 10) === parseInt(requesterAccount, 10)) {
+        throw new Error('不能向自己的预约申请分享');
+      }
 
-    if (booking.member_account === requesterAccount) {
-      throw new Error('不能向自己的预约申请分享');
-    }
+      const [existing] = await connection.execute(
+        `SELECT request_id FROM equipment_share_request 
+          WHERE booking_id = ? AND requester_account = ? AND status = 'pending'`,
+        [bookingId, requesterAccount]
+      );
 
-    const [result] = await db.execute(
-      `INSERT INTO equipment_share_request 
-       (booking_id, requester_account, requester_name, status) 
-       VALUES (?, ?, ?, 'pending')`,
-      [bookingId, requesterAccount, requesterName]
-    );
+      if (existing.length > 0) {
+        throw new Error('您已经提交过分享请求，请等待处理');
+      }
 
-    return result.insertId;
+      const [result] = await connection.execute(
+        `INSERT INTO equipment_share_request 
+         (booking_id, requester_account, requester_name, status) 
+         VALUES (?, ?, ?, 'pending')`,
+        [bookingId, requesterAccount, requesterName]
+      );
+
+      return result.insertId;
+    });
   },
 
   // 获取预约的所有分享请求
@@ -210,27 +234,30 @@ const equipmentBookingService = {
 
   // 处理分享请求（接受或拒绝）
   async handleShareRequest(requestId, bookingOwnerAccount, action) {
-    // 验证请求属于该用户
-    const [requests] = await db.execute(
-      `SELECT esr.* FROM equipment_share_request esr
-       JOIN equipment_booking eb ON esr.booking_id = eb.booking_id
-       WHERE esr.request_id = ? AND eb.member_account = ?`,
-      [requestId, bookingOwnerAccount]
-    );
-
-    if (requests.length === 0) {
-      throw new Error('请求不存在或无权限处理');
-    }
-
     const status = action === 'accept' ? 'accepted' : 'rejected';
-    await db.execute(
-      `UPDATE equipment_share_request 
-       SET status = ? 
-       WHERE request_id = ?`,
-      [status, requestId]
-    );
 
-    return true;
+    return db.withTransaction(async (connection) => {
+      const [requests] = await connection.execute(
+        `SELECT esr.request_id FROM equipment_share_request esr
+         JOIN equipment_booking eb ON esr.booking_id = eb.booking_id
+         WHERE esr.request_id = ? AND eb.member_account = ?
+         FOR UPDATE`,
+        [requestId, bookingOwnerAccount]
+      );
+
+      if (requests.length === 0) {
+        throw new Error('请求不存在或无权限处理');
+      }
+
+      await connection.execute(
+        `UPDATE equipment_share_request 
+         SET status = ? 
+         WHERE request_id = ?`,
+        [status, requestId]
+      );
+
+      return true;
+    });
   },
 
   // 获取会员发送的分享请求
@@ -262,47 +289,55 @@ const equipmentBookingService = {
   },
 
   // 获取预约的所有训练会话（含 status：confirmed 仅完成列可编辑，completed 完全只读）
+  //
+  // Previously this issued one query per session to fetch its records (N+1). All records
+  // are now fetched in a single query and grouped in memory.
   async getTrainingSessionsByBooking(bookingId) {
-    let sessions;
-    try {
-      const [rows] = await db.execute(
+    const supportsStatus = (await schema.get()).trainingSessionStatus;
+
+    const [sessions] = supportsStatus
+      ? await db.execute(
         `SELECT session_id, booking_id, created_at, COALESCE(status, 'completed') as status
-         FROM equipment_training_session
-         WHERE booking_id = ?
-         ORDER BY created_at DESC`,
-        [bookingId]
-      );
-      sessions = rows;
-    } catch (err) {
-      if (err.message && err.message.includes('status')) {
-        const [rows] = await db.execute(
-          `SELECT session_id, booking_id, created_at
            FROM equipment_training_session
-           WHERE booking_id = ?
-           ORDER BY created_at DESC`,
-          [bookingId]
-        );
-        sessions = rows.map((s) => ({ ...s, status: 'completed' }));
-      } else {
-        throw err;
-      }
-    }
+          WHERE booking_id = ?
+          ORDER BY created_at DESC`,
+        [bookingId]
+      )
+      : (await db.execute(
+        `SELECT session_id, booking_id, created_at
+           FROM equipment_training_session
+          WHERE booking_id = ?
+          ORDER BY created_at DESC`,
+        [bookingId]
+      ))[0].map((s) => ({ ...s, status: 'completed' }));
 
     const result = [];
-    for (const s of sessions) {
+
+    if (sessions.length > 0) {
+      const placeholders = sessions.map(() => '?').join(',');
       const [records] = await db.execute(
-        `SELECT record_id, set_number, weight, repetitions, completed, exercise_name
-         FROM equipment_training_record
-         WHERE session_id = ?
-         ORDER BY set_number ASC`,
-        [s.session_id]
+        `SELECT record_id, session_id, set_number, weight, repetitions, completed, exercise_name
+           FROM equipment_training_record
+          WHERE session_id IN (${placeholders})
+          ORDER BY set_number ASC`,
+        sessions.map((s) => s.session_id)
       );
-      result.push({
-        session_id: s.session_id,
-        created_at: s.created_at,
-        status: s.status || 'completed',
-        records
-      });
+
+      const bySession = new Map();
+      for (const record of records) {
+        const bucket = bySession.get(record.session_id);
+        if (bucket) bucket.push(record);
+        else bySession.set(record.session_id, [record]);
+      }
+
+      for (const session of sessions) {
+        result.push({
+          session_id: session.session_id,
+          created_at: session.created_at,
+          status: session.status || 'completed',
+          records: bySession.get(session.session_id) || []
+        });
+      }
     }
 
     // 兼容旧数据：无 session_id 的记录视为一条“历史会话”（完全只读）
@@ -323,53 +358,61 @@ const equipmentBookingService = {
 
   // 保存预约的训练记录（仅预约所有者可操作；fullyComplete=true 为“完成”，false 为“确认计划”）
   async saveTrainingRecords(bookingId, records, fullyComplete = true, memberAccount) {
-    const booking = await this.getBookingById(bookingId);
-    if (!booking) {
-      throw new Error('预约不存在');
-    }
-    if (parseInt(booking.member_account) !== parseInt(memberAccount)) {
-      throw new Error('仅预约所有者可添加训练计划');
-    }
     if (!records || records.length === 0) return [];
 
-    let sessionId;
     const status = fullyComplete ? 'completed' : 'confirmed';
-    try {
-      const [sessionResult] = await db.execute(
-        'INSERT INTO equipment_training_session (booking_id, status) VALUES (?, ?)',
-        [bookingId, status]
+
+    return db.withTransaction(async (connection) => {
+      const [bookings] = await connection.execute(
+        'SELECT booking_id, member_account FROM equipment_booking WHERE booking_id = ?',
+        [bookingId]
       );
-      sessionId = sessionResult.insertId;
-    } catch (err) {
-      if (err.message && err.message.includes('status')) {
-        const [sessionResult] = await db.execute(
+
+      if (bookings.length === 0) {
+        throw new Error('预约不存在');
+      }
+      if (parseInt(bookings[0].member_account, 10) !== parseInt(memberAccount, 10)) {
+        throw new Error('仅预约所有者可添加训练计划');
+      }
+
+      const supportsStatus = (await schema.get()).trainingSessionStatus;
+      const [sessionResult] = supportsStatus
+        ? await connection.execute(
+          'INSERT INTO equipment_training_session (booking_id, status) VALUES (?, ?)',
+          [bookingId, status]
+        )
+        : await connection.execute(
           'INSERT INTO equipment_training_session (booking_id) VALUES (?)',
           [bookingId]
         );
-        sessionId = sessionResult.insertId;
-      } else {
-        throw err;
-      }
-    }
 
-    const inserted = [];
-    for (const r of records) {
-      await db.execute(
-        `INSERT INTO equipment_training_record (booking_id, session_id, set_number, weight, repetitions, completed, exercise_name)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
+      const sessionId = sessionResult.insertId;
+
+      // One multi-row INSERT instead of one statement per set: this is a write path,
+      // and N round-trips per save is what made it expensive at high TPS.
+      const placeholders = records.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ');
+      const values = [];
+      for (const record of records) {
+        values.push(
           bookingId,
           sessionId,
-          r.set_number,
-          r.weight || '',
-          r.repetitions || '',
-          r.completed ? 1 : 0,
-          r.exercise_name || ''
-        ]
+          record.set_number,
+          record.weight || '',
+          record.repetitions || '',
+          record.completed ? 1 : 0,
+          record.exercise_name || ''
+        );
+      }
+
+      await connection.execute(
+        `INSERT INTO equipment_training_record
+         (booking_id, session_id, set_number, weight, repetitions, completed, exercise_name)
+         VALUES ${placeholders}`,
+        values
       );
-      inserted.push({ ...r, session_id: sessionId });
-    }
-    return inserted;
+
+      return records.map((record) => ({ ...record, session_id: sessionId }));
+    });
   },
 
   // 更新某条记录的“完成”勾选（仅预约所有者可操作）
@@ -384,7 +427,7 @@ const equipmentBookingService = {
     if (rows.length === 0) {
       throw new Error('记录不存在');
     }
-    if (parseInt(rows[0].member_account) !== parseInt(memberAccount)) {
+    if (parseInt(rows[0].member_account, 10) !== parseInt(memberAccount, 10)) {
       throw new Error('仅预约所有者可修改训练计划');
     }
     await db.execute(
@@ -408,21 +451,23 @@ const equipmentBookingService = {
 
   // 删除训练计划会话（仅预约所有者可操作）
   async deleteTrainingSession(sessionId, memberAccount) {
-    const [sessions] = await db.execute(
-      `SELECT s.session_id, eb.member_account FROM equipment_training_session s
-       INNER JOIN equipment_booking eb ON s.booking_id = eb.booking_id
-       WHERE s.session_id = ?`,
-      [sessionId]
-    );
-    if (sessions.length === 0) {
-      throw new Error('会话不存在');
-    }
-    if (parseInt(sessions[0].member_account) !== parseInt(memberAccount)) {
-      throw new Error('仅预约所有者可删除训练计划');
-    }
-    await db.execute('DELETE FROM equipment_training_record WHERE session_id = ?', [sessionId]);
-    await db.execute('DELETE FROM equipment_training_session WHERE session_id = ?', [sessionId]);
-    return true;
+    return db.withTransaction(async (connection) => {
+      const [sessions] = await connection.execute(
+        `SELECT s.session_id, eb.member_account FROM equipment_training_session s
+         INNER JOIN equipment_booking eb ON s.booking_id = eb.booking_id
+         WHERE s.session_id = ?`,
+        [sessionId]
+      );
+      if (sessions.length === 0) {
+        throw new Error('会话不存在');
+      }
+      if (parseInt(sessions[0].member_account, 10) !== parseInt(memberAccount, 10)) {
+        throw new Error('仅预约所有者可删除训练计划');
+      }
+      await connection.execute('DELETE FROM equipment_training_record WHERE session_id = ?', [sessionId]);
+      await connection.execute('DELETE FROM equipment_training_session WHERE session_id = ?', [sessionId]);
+      return true;
+    });
   }
 };
 

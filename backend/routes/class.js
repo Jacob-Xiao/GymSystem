@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../config/database');
 const classService = require('../services/classService');
 const classOrderService = require('../services/classOrderService');
 
@@ -26,11 +27,9 @@ router.post('/add', async (req, res) => {
 // Update class (must be before /:id route)
 router.put('/update', async (req, res) => {
   try {
-    console.log('Update request body:', req.body);
     await classService.update(req.body);
     res.json({ success: true, message: '课程信息更新成功' });
   } catch (error) {
-    console.error('Update error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -63,10 +62,14 @@ router.get('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const classId = parseInt(req.params.id);
-    // Delete related orders first
-    await classOrderService.deleteByClassId(classId);
-    // Then delete the class
-    await classService.deleteById(classId);
+
+    // Orders and the class itself must disappear together; a partial failure would
+    // otherwise leave orphaned enrolments pointing at a deleted class.
+    await db.withTransaction(async (connection) => {
+      await classOrderService.deleteByClassId(classId, connection);
+      await classService.deleteById(classId, connection);
+    });
+
     res.json({ success: true, message: '课程删除成功' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -30,9 +30,6 @@ router.get('/member/:memberAccount/bookings', async (req, res) => {
     const memberAccount = parseInt(req.params.memberAccount);
     const bookings = await equipmentBookingService.getBookingsByMember(memberAccount);
     const list = bookings.map((b) => ({ ...b, bookingId: b.booking_id }));
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'equipmentBooking.js:list', message: 'member bookings list', data: { memberAccount, count: list.length, bookingIds: list.map((b) => b.booking_id ?? b.bookingId) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
-    // #endregion
     res.json({ success: true, data: list });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -44,18 +41,10 @@ router.get('/booking/:bookingId', async (req, res) => {
   try {
     const rawParam = req.params.bookingId;
     const bookingId = parseInt(rawParam, 10);
-    // #region agent log
-    if (Number.isNaN(bookingId)) {
-      fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'equipmentBooking.js:detail', message: 'detail request NaN', data: { rawParam, bookingId }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
-    }
-    // #endregion
     if (Number.isNaN(bookingId)) {
       return res.status(400).json({ success: false, message: '预约ID无效' });
     }
     const booking = await equipmentBookingService.getBookingById(bookingId);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'equipmentBooking.js:detail', message: 'getBookingById result', data: { rawParam, bookingId, found: !!booking }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
-    // #endregion
     if (!booking) {
       return res.status(404).json({ success: false, message: '预约不存在' });
     }

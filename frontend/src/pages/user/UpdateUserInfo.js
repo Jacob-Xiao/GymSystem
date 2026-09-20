@@ -76,15 +76,7 @@ const UpdateUserInfo = () => {
         memberPhoto: formData.memberPhoto || null,
       };
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UpdateUserInfo.js:68',message:'Frontend: Preparing update request',data:{hasMemberPhoto:!!updateData.memberPhoto,memberPhotoLength:updateData.memberPhoto?updateData.memberPhoto.length:0,memberPhotoPrefix:updateData.memberPhoto?updateData.memberPhoto.substring(0,50):null,memberAccount:updateData.memberAccount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-
       const response = await userAPI.updateInfo(updateData);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UpdateUserInfo.js:79',message:'Frontend: Received response',data:{success:response.data.success,message:response.data.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
 
       if (response.data.success) {
         // Update session storage
@@ -110,9 +102,6 @@ const UpdateUserInfo = () => {
         setError(response.data.message || '更新失败');
       }
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/b0c20269-a1cb-4b4a-bf8f-a5d0c0463f2b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UpdateUserInfo.js:103',message:'Frontend: Error caught',data:{errorMessage:error.message,responseMessage:error.response?.data?.message,status:error.response?.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       setError(error.response?.data?.message || '更新失败');
     }
   };

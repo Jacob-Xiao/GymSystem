@@ -1,9 +1,15 @@
 const db = require('../config/database');
+const cache = require('../config/cache');
+
+const CACHE_PREFIX = 'class:';
+const LIST_TTL_MS = Number.parseInt(process.env.CLASS_CACHE_TTL_MS, 10) || 15000;
 
 const classService = {
   async findAll() {
-    const [rows] = await db.execute('SELECT * FROM class_table ORDER BY class_id');
-    return rows;
+    return cache.wrap(`${CACHE_PREFIX}all`, LIST_TTL_MS, async () => {
+      const [rows] = await db.execute('SELECT * FROM class_table ORDER BY class_id');
+      return rows;
+    });
   },
 
   async findById(classId) {
@@ -29,6 +35,7 @@ const classService = {
       [classId, className, classBegin, classTime, coach]
     );
 
+    cache.invalidate(CACHE_PREFIX);
     return true;
   },
 
@@ -47,11 +54,13 @@ const classService = {
       [className, classBegin, classTime, coach, classId]
     );
 
+    cache.invalidate(CACHE_PREFIX);
     return true;
   },
 
-  async deleteById(classId) {
-    await db.execute('DELETE FROM class_table WHERE class_id = ?', [classId]);
+  async deleteById(classId, executor = db) {
+    await executor.execute('DELETE FROM class_table WHERE class_id = ?', [classId]);
+    cache.invalidate(CACHE_PREFIX);
     return true;
   }
 };
