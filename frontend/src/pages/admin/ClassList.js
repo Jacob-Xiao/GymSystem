@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { classAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const ClassList = () => {
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,12 +29,12 @@ const ClassList = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('确定要删除该课程吗？删除课程将同时删除所有相关报名信息。')) {
+    if (window.confirm(t('class.delete.confirm'))) {
       try {
         await classAPI.delete(id);
         fetchClasses();
       } catch (error) {
-        alert('删除失败：' + (error.response?.data?.message || error.message));
+        alert(t('class.delete.failed') + (error.response?.data?.message || error.message));
       }
     }
   };
@@ -41,7 +43,7 @@ const ClassList = () => {
     return (
       <AdminLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </AdminLayout>
     );
@@ -50,22 +52,22 @@ const ClassList = () => {
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">课程管理</h1>
+        <h1 className="mt-4">{t('class.list.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">课程管理</li>
+          <li className="breadcrumb-item active">{t('class.list.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <div className="d-flex justify-content-between align-items-center">
               <div>
                 <i className="bi bi-table me-1"></i>
-                课程列表
+                {t('class.list.cardTitle')}
               </div>
               <Link to="/admin/classes/add" className="btn btn-primary btn-sm">
-                添加课程
+                {t('class.action.add')}
               </Link>
             </div>
           </div>
@@ -74,12 +76,12 @@ const ClassList = () => {
               <table className="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>课程ID</th>
-                    <th>课程名称</th>
-                    <th>开课时间</th>
-                    <th>课程时长</th>
-                    <th>教练</th>
-                    <th>操作</th>
+                    <th>{t('class.field.id')}</th>
+                    <th>{t('class.field.name')}</th>
+                    <th>{t('class.field.begin')}</th>
+                    <th>{t('class.field.duration')}</th>
+                    <th>{t('class.field.coach')}</th>
+                    <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -95,19 +97,19 @@ const ClassList = () => {
                           to={`/admin/classes/orders/${classItem.class_id}`}
                           className="btn btn-sm btn-info me-1"
                         >
-                          查看报名
+                          {t('class.action.viewOrders')}
                         </Link>
                         <Link
                           to={`/admin/classes/update/${classItem.class_id}`}
                           className="btn btn-sm btn-warning me-1"
                         >
-                          修改
+                          {t('common.edit')}
                         </Link>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => handleDelete(classItem.class_id)}
                         >
-                          删除
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>

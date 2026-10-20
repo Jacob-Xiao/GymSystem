@@ -4,9 +4,12 @@ import { formatDateTime } from '../../utils/date';
 import UserLayout from '../../components/UserLayout';
 import { equipmentBookingAPI, notificationAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const ShareRequests = () => {
   const ready = useAuthGuard('user');
+  const { t, language } = useI18n();
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US';
   const { account } = useParams();
   const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'notifications'
   const [requests, setRequests] = useState([]);
@@ -49,26 +52,26 @@ const ShareRequests = () => {
   const handleRequest = async (requestId, action) => {
     try {
       await equipmentBookingAPI.handleShareRequest(requestId, parseInt(account), action);
-      fetchShareRequests(); // 刷新列表
+      fetchShareRequests(); // refresh the list
       // 触发父组件更新未读数量（通过刷新页面或事件）
       window.dispatchEvent(new Event('shareRequestUpdated'));
     } catch (error) {
-      alert(error.response?.data?.message || '操作失败');
+      alert(error.response?.data?.message || t('user.booking.actionFailed'));
     }
   };
 
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">消息</h1>
+        <h1 className="mt-4">{t('user.messages.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/user/main">主页</Link>
+            <Link to="/user/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">消息</li>
+          <li className="breadcrumb-item active">{t('user.messages.title')}</li>
         </ol>
 
-        {/* 标签页导航 */}
+        {/* tabs */}
         <ul className="nav nav-tabs mb-4">
           <li className="nav-item">
             <button
@@ -76,7 +79,7 @@ const ShareRequests = () => {
               onClick={() => setActiveTab('requests')}
             >
               <i className="bi bi-envelope me-1"></i>
-              分享请求
+              {t('user.messages.tabRequests')}
             </button>
           </li>
           <li className="nav-item">
@@ -85,17 +88,17 @@ const ShareRequests = () => {
               onClick={() => setActiveTab('notifications')}
             >
               <i className="bi bi-bell me-1"></i>
-              系统通知
+              {t('user.messages.tabNotifications')}
             </button>
           </li>
         </ul>
 
-        {/* 分享请求标签页 */}
+        {/* share requests */}
         {activeTab === 'requests' && (
           <div className="card mb-4">
             <div className="card-header">
               <i className="bi bi-envelope me-1"></i>
-              收到的分享请求
+              {t('user.messages.received')}
             </div>
             <div className="card-body">
             {requests.length > 0 ? (
@@ -107,23 +110,23 @@ const ShareRequests = () => {
                         <div className="d-flex justify-content-between align-items-start mb-2">
                           <div>
                             <h5 className="mb-1">
-                              {request.requester_name} ({request.requester_account}) 请求分享您的预约
+                              {request.requester_name} ({request.requester_account}) {t('user.messages.requestShare')}
                             </h5>
                             <p className="mb-1">
-                              <strong>器材：</strong>{request.equipment_name} ({request.equipment_location})
+                              <strong>{t('user.messages.equipment')}</strong>{request.equipment_name} ({request.equipment_location})
                             </p>
                             <p className="mb-1">
-                              <strong>预约时间：</strong>
-                              {formatDateTime(request.start_time)} - {formatDateTime(request.end_time)}
+                              <strong>{t('user.messages.bookingTime')}</strong>
+                              {formatDateTime(request.start_time, locale)} - {formatDateTime(request.end_time, locale)}
                             </p>
                             {request.location_note && (
                               <p className="mb-1">
-                                <strong>训练地址备注：</strong>{request.location_note}
+                                <strong>{t('user.booking.locationNote')}</strong>{request.location_note}
                               </p>
                             )}
                             <p className="mb-0">
                               <small className="text-muted">
-                                请求时间：{formatDateTime(request.created_at)}
+                                {t('user.booking.requestTime')}: {formatDateTime(request.created_at, locale)}
                               </small>
                             </p>
                           </div>
@@ -131,8 +134,8 @@ const ShareRequests = () => {
                             request.status === 'pending' ? 'bg-warning' :
                             request.status === 'accepted' ? 'bg-success' : 'bg-danger'
                           }`}>
-                            {request.status === 'pending' ? '待处理' :
-                             request.status === 'accepted' ? '已接受' : '已拒绝'}
+                            {request.status === 'pending' ? t('user.messages.pending') :
+                             request.status === 'accepted' ? t('user.messages.accepted') : t('user.messages.rejected')}
                           </span>
                         </div>
                         <div className="mt-2">
@@ -146,7 +149,7 @@ const ShareRequests = () => {
                               }, 1000);
                             }}
                           >
-                            查看预约详情
+                            {t('user.booking.detailTitle')}
                           </Link>
                           {request.status === 'pending' && (
                             <>
@@ -154,13 +157,13 @@ const ShareRequests = () => {
                                 className="btn btn-sm btn-success me-2"
                                 onClick={() => handleRequest(request.request_id, 'accept')}
                               >
-                                接受
+                                {t('user.booking.accept')}
                               </button>
                               <button
                                 className="btn btn-sm btn-danger"
                                 onClick={() => handleRequest(request.request_id, 'reject')}
                               >
-                                拒绝
+                                {t('user.booking.reject')}
                               </button>
                             </>
                           )}
@@ -172,29 +175,29 @@ const ShareRequests = () => {
               </div>
             ) : requestsLoading ? (
               <div className="text-center py-5">
-                <p className="text-muted">加载中...</p>
+                <p className="text-muted">{t('common.loading')}</p>
               </div>
             ) : (
               <div className="text-center py-5">
                 <i className="bi bi-inbox fs-1 text-muted"></i>
-                <p className="text-muted mt-3">暂无分享请求消息</p>
+                <p className="text-muted mt-3">{t('user.messages.emptyRequests')}</p>
               </div>
             )}
           </div>
         </div>
         )}
 
-        {/* 通知标签页 */}
+        {/* notifications */}
         {activeTab === 'notifications' && (
           <div className="card mb-4">
             <div className="card-header">
               <i className="bi bi-bell me-1"></i>
-              系统通知
+              {t('user.messages.tabNotifications')}
             </div>
             <div className="card-body">
               {notificationsLoading ? (
                 <div className="text-center py-5">
-                  <p className="text-muted">加载中...</p>
+                  <p className="text-muted">{t('common.loading')}</p>
                 </div>
               ) : notifications.length > 0 ? (
                 <div className="list-group">
@@ -207,7 +210,7 @@ const ShareRequests = () => {
                             {notification.content}
                           </div>
                           <small className="text-muted">
-                            {formatDateTime(notification.created_at)}
+                            {formatDateTime(notification.created_at, locale)}
                           </small>
                         </div>
                       </div>
@@ -217,7 +220,7 @@ const ShareRequests = () => {
               ) : (
                 <div className="text-center py-5">
                   <i className="bi bi-bell-slash fs-1 text-muted"></i>
-                  <p className="text-muted mt-3">暂无通知</p>
+                  <p className="text-muted mt-3">{t('user.messages.emptyNotifications')}</p>
                 </div>
               )}
             </div>

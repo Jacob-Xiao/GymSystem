@@ -3,14 +3,16 @@ import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { equipmentAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const AddEquipment = () => {
   const navigate = useNavigate();
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     equipmentName: '',
     equipmentLocation: '',
-    equipmentStatus: '正常',
+    equipmentStatus: t('equipment.status.normal'),
     equipmentMessage: '',
     equipmentImage: '',
     equipmentFunction: '',
@@ -29,7 +31,7 @@ const AddEquipment = () => {
     setError('');
 
     if (!formData.equipmentName || !formData.equipmentLocation || !formData.equipmentStatus) {
-      setError('请填写所有必填项');
+      setError(t('member.required'));
       return;
     }
 
@@ -46,34 +48,34 @@ const AddEquipment = () => {
       if (response.data.success) {
         navigate('/admin/equipment');
       } else {
-        setError(response.data.message || '添加失败');
+        setError(response.data.message || t('member.add.failed'));
       }
     } catch (error) {
-      setError(error.response?.data?.message || '添加失败');
+      setError(error.response?.data?.message || t('member.add.failed'));
     }
   };
 
   if (!ready) {
-    return <div className="text-center mt-5">加载中...</div>;
+    return <div className="text-center mt-5">{t('common.loading')}</div>;
   }
 
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">添加器材</h1>
+        <h1 className="mt-4">{t('equipment.add.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to="/admin/equipment">器材管理</Link>
+            <Link to="/admin/equipment">{t('admin.nav.equipment')}</Link>
           </li>
-          <li className="breadcrumb-item active">添加器材</li>
+          <li className="breadcrumb-item active">{t('equipment.add.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-gear me-1"></i>
-            添加器材信息
+            {t('equipment.add.cardTitle')}
           </div>
           <div className="card-body">
             {error && (
@@ -84,7 +86,7 @@ const AddEquipment = () => {
             <form onSubmit={handleSubmit}>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">器材名称 *</label>
+                  <label className="form-label">{t('equipment.field.name')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -95,7 +97,7 @@ const AddEquipment = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">器材位置 *</label>
+                  <label className="form-label">{t('equipment.field.location')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -108,7 +110,7 @@ const AddEquipment = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">器材状态 *</label>
+                  <label className="form-label">{t('equipment.field.status')}</label>
                   <select
                     className="form-control"
                     name="equipmentStatus"
@@ -116,15 +118,15 @@ const AddEquipment = () => {
                     onChange={handleChange}
                     required
                   >
-                    <option value="正常">正常</option>
-                    <option value="损坏">损坏</option>
-                    <option value="维修中">维修中</option>
+                    <option value={t('equipment.status.normal')}>{t('equipment.status.normal')}</option>
+                    <option value={t('equipment.status.damaged')}>{t('equipment.status.damaged')}</option>
+                    <option value={t('equipment.status.repairing')}>{t('equipment.status.repairing')}</option>
                   </select>
                 </div>
               </div>
               <div className="row mb-3">
                 <div className="col-md-12">
-                  <label className="form-label">备注信息</label>
+                  <label className="form-label">{t('equipment.field.message')}</label>
                   <textarea
                     className="form-control"
                     name="equipmentMessage"
@@ -136,12 +138,12 @@ const AddEquipment = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-12">
-                  <label className="form-label">器材图片</label>
+                  <label className="form-label">{t('equipment.field.image')}</label>
                   <div className="mb-2">
                     {formData.equipmentImage ? (
                       <img 
                         src={formData.equipmentImage} 
-                        alt="预览"
+                        alt={t('equipment.field.image')}
                         className="img-thumbnail"
                         style={{ maxWidth: '150px', maxHeight: '150px', objectFit: 'cover' }}
                         onError={(e) => {
@@ -151,7 +153,7 @@ const AddEquipment = () => {
                     ) : (
                       <div className="bg-light d-inline-block p-3 rounded">
                         <i className="bi bi-image text-muted"></i>
-                        <p className="text-muted mb-0 small">暂无图片</p>
+                        <p className="text-muted mb-0 small">{t('equipment.field.noImage')}</p>
                       </div>
                     )}
                   </div>
@@ -173,11 +175,11 @@ const AddEquipment = () => {
                       }
                     }}
                   />
-                  <small className="form-text text-muted">可选择本地图片文件上传，或输入图片URL地址</small>
+                  <small className="form-text text-muted">{t('equipment.field.image')}</small>
                   <input
                     type="text"
                     className="form-control mt-2"
-                    placeholder="或输入图片URL地址（可选）"
+                    placeholder={t('equipment.field.image')}
                     onChange={(e) => {
                       if (e.target.value) {
                         setFormData({
@@ -191,23 +193,23 @@ const AddEquipment = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-12">
-                  <label className="form-label">器材功能说明</label>
+                  <label className="form-label">{t('equipment.field.function')}</label>
                   <textarea
                     className="form-control"
                     name="equipmentFunction"
                     value={formData.equipmentFunction}
                     onChange={handleChange}
                     rows="5"
-                    placeholder="请输入器材的功能说明（可选）"
+                    placeholder={t('equipment.field.function')}
                   />
                 </div>
               </div>
               <div className="mt-4 mb-0">
                 <button type="submit" className="btn btn-primary">
-                  添加
+                  {t('common.add')}
                 </button>
                 <Link to="/admin/equipment" className="btn btn-secondary ms-2">
-                  取消
+                  {t('common.cancel')}
                 </Link>
               </div>
             </form>

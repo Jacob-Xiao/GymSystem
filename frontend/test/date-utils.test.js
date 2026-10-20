@@ -54,22 +54,41 @@ test('formatDateTime degrades gracefully for missing or invalid values', () => {
   assert.equal(formatDateTime('not-a-date'), 'not-a-date');
 });
 
-test('membershipRemaining reports an unset membership', () => {
+test('membershipRemaining defaults to language-neutral English copy', () => {
   // Field comparison rather than deepEqual: the sandbox above creates objects with its
   // own Object.prototype, so structural identity checks do not apply.
   const missingTime = membershipRemaining(null, 12);
-  assert.equal(missingTime.text, '未设置');
+  assert.equal(missingTime.text, 'Not set');
   assert.equal(missingTime.expired, false);
 
   const missingDuration = membershipRemaining('2021-01-01', null);
-  assert.equal(missingDuration.text, '未设置');
+  assert.equal(missingDuration.text, 'Not set');
   assert.equal(missingDuration.expired, false);
+});
+
+test('membershipRemaining accepts caller-supplied copy for each language', () => {
+  const zh = {
+    notSet: '未设置',
+    expired: '已过期',
+    days: (n) => n + '天',
+    months: (n) => n + '个月'
+  };
+  assert.equal(membershipRemaining(null, 12, zh).text, '未设置');
+  assert.equal(membershipRemaining('2020-01-01T00:00:00.000Z', 1, zh).text, '已过期');
+
+  const en = {
+    notSet: 'Not set',
+    expired: 'Expired',
+    days: (n) => n + ' day(s)',
+    months: (n) => n + ' month(s)'
+  };
+  assert.equal(membershipRemaining(null, 12, en).text, 'Not set');
 });
 
 test('membershipRemaining reports an expired membership', () => {
   const result = membershipRemaining('2020-01-01T00:00:00.000Z', 1);
   assert.equal(result.expired, true);
-  assert.equal(result.text, '已过期');
+  assert.equal(result.text, 'Expired');
 });
 
 test('membershipRemaining counts whole months still remaining', () => {
@@ -79,5 +98,5 @@ test('membershipRemaining counts whole months still remaining', () => {
 
   const result = membershipRemaining(sixMonthsAgo.toISOString(), 24);
   assert.equal(result.expired, false);
-  assert.equal(result.text, '18个月');
+  assert.equal(result.text, '18 month(s)');
 });

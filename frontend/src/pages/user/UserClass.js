@@ -3,9 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { userAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const UserClass = () => {
   const ready = useAuthGuard('user');
+  const { t } = useI18n();
   const { account } = useParams();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,12 +30,12 @@ const UserClass = () => {
   }, [ready, fetchClasses]);
 
   const handleCancel = async (orderId) => {
-    if (window.confirm('确定要退课吗？')) {
+    if (window.confirm(t('user.class.cancelConfirm'))) {
       try {
         await userAPI.cancelClass(orderId);
         fetchClasses();
       } catch (error) {
-        alert('退课失败：' + (error.response?.data?.message || error.message));
+        alert(t('user.class.cancelFailed') + (error.response?.data?.message || error.message));
       }
     }
   };
@@ -42,7 +44,7 @@ const UserClass = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </UserLayout>
     );
@@ -51,22 +53,22 @@ const UserClass = () => {
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">我的课程</h1>
+        <h1 className="mt-4">{t('user.class.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/user/main">主页</Link>
+            <Link to="/user/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">我的课程</li>
+          <li className="breadcrumb-item active">{t('user.class.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <div className="d-flex justify-content-between align-items-center">
               <div>
                 <i className="bi bi-calendar-event me-1"></i>
-                已报名课程
+                {t('user.class.cardTitle')}
               </div>
               <Link to={`/user/classes/apply/${account}`} className="btn btn-primary btn-sm">
-                报名选课
+                {t('user.class.apply')}
               </Link>
             </div>
           </div>
@@ -75,11 +77,11 @@ const UserClass = () => {
               <table className="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>课程ID</th>
-                    <th>课程名称</th>
-                    <th>教练</th>
-                    <th>开课时间</th>
-                    <th>操作</th>
+                    <th>{t('class.field.id')}</th>
+                    <th>{t('class.field.name')}</th>
+                    <th>{t('class.field.coach')}</th>
+                    <th>{t('class.field.begin')}</th>
+                    <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -95,7 +97,7 @@ const UserClass = () => {
                             className="btn btn-sm btn-danger"
                             onClick={() => handleCancel(classItem.class_order_id)}
                           >
-                            退课
+                            {t('user.class.cancel')}
                           </button>
                         </td>
                       </tr>
@@ -103,7 +105,7 @@ const UserClass = () => {
                   ) : (
                     <tr>
                       <td colSpan="5" className="text-center">
-                        暂无已报名课程
+                        {t('user.class.empty')}
                       </td>
                     </tr>
                   )}

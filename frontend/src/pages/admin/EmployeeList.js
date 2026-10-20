@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { employeeAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 import { formatDate } from '../../utils/date';
 
 const EmployeeList = () => {
   const ready = useAuthGuard('admin');
+  const { t, language } = useI18n();
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US';
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,12 +31,12 @@ const EmployeeList = () => {
   };
 
   const handleDelete = async (account) => {
-    if (window.confirm('确定要删除该员工吗？')) {
+    if (window.confirm(t('employee.delete.confirm'))) {
       try {
         await employeeAPI.delete(account);
         fetchEmployees();
       } catch (error) {
-        alert('删除失败：' + (error.response?.data?.message || error.message));
+        alert(t('employee.delete.failed') + (error.response?.data?.message || error.message));
       }
     }
   };
@@ -42,7 +45,7 @@ const EmployeeList = () => {
     return (
       <AdminLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </AdminLayout>
     );
@@ -51,22 +54,22 @@ const EmployeeList = () => {
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">员工管理</h1>
+        <h1 className="mt-4">{t('employee.list.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">员工管理</li>
+          <li className="breadcrumb-item active">{t('employee.list.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <div className="d-flex justify-content-between align-items-center">
               <div>
                 <i className="bi bi-table me-1"></i>
-                员工列表
+                {t('employee.list.cardTitle')}
               </div>
               <Link to="/admin/employees/add" className="btn btn-primary btn-sm">
-                添加员工
+                {t('employee.action.add')}
               </Link>
             </div>
           </div>
@@ -75,14 +78,14 @@ const EmployeeList = () => {
               <table className="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>员工账号</th>
-                    <th>姓名</th>
-                    <th>性别</th>
-                    <th>年龄</th>
-                    <th>入职时间</th>
-                    <th>职务</th>
-                    <th>备注信息</th>
-                    <th>操作</th>
+                    <th>{t('employee.field.account')}</th>
+                    <th>{t('employee.field.name')}</th>
+                    <th>{t('employee.field.gender')}</th>
+                    <th>{t('employee.field.age')}</th>
+                    <th>{t('employee.field.entryTime')}</th>
+                    <th>{t('employee.field.staff')}</th>
+                    <th>{t('employee.field.message')}</th>
+                    <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -92,7 +95,7 @@ const EmployeeList = () => {
                       <td>{employee.employee_name}</td>
                       <td>{employee.employee_gender}</td>
                       <td>{employee.employee_age}</td>
-                      <td>{formatDate(employee.entry_time)}</td>
+                      <td>{formatDate(employee.entry_time, locale)}</td>
                       <td>{employee.staff}</td>
                       <td>{employee.employee_message}</td>
                       <td>
@@ -100,13 +103,13 @@ const EmployeeList = () => {
                           to={`/admin/employees/update/${employee.employee_account}`}
                           className="btn btn-sm btn-warning me-1"
                         >
-                          修改
+                          {t('common.edit')}
                         </Link>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => handleDelete(employee.employee_account)}
                         >
-                          删除
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>

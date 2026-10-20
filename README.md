@@ -1,215 +1,200 @@
-# 健身房管理系统
+# Gym Management System
 
-毕业设计项目，已从 Spring Boot + Thymeleaf 迁移至 Node.js + React.js 技术栈。
+A gym administration system built as a final-year project. Originally written with Spring
+Boot and Thymeleaf, it has been migrated to a Node.js + React architecture.
 
-## 技术栈
+The interface supports **Chinese and English**, switchable at runtime from the top
+navigation bar.
 
-### 后端
-* **框架**: Node.js + Express
-* **数据库**: MySQL 8.0
-* **数据库驱动**: mysql2
+## Tech stack
 
-### 前端
-* **框架**: React.js 18
-* **路由**: React Router DOM 6
-* **HTTP客户端**: Axios
-* **UI框架**: Bootstrap 5
-* **图标**: Bootstrap Icons
+### Backend
 
-## 项目结构
+- **Runtime**: Node.js + Express
+- **Database**: MySQL 8.0, accessed through `mysql2`
+- **Auth**: JWT bearer tokens (`jsonwebtoken`) with bcrypt password hashing (`bcryptjs`)
+
+### Frontend
+
+- **Framework**: React 18
+- **Routing**: React Router DOM 6
+- **HTTP client**: Axios
+- **UI**: Bootstrap 5 with Bootstrap Icons
+
+## Project structure
 
 ```
 gym-management-system/
-├── backend/              # Node.js 后端
-│   ├── config/          # 配置文件
-│   ├── routes/          # 路由
-│   ├── services/        # 业务逻辑层
-│   ├── server.js        # 服务器入口
-│   └── package.json
-├── frontend/            # React 前端
-│   ├── public/         # 静态文件
+├── backend/                 # Node.js API
+│   ├── config/              # Database pool, cache, password helpers
+│   ├── middleware/          # Authentication and performance middleware
+│   ├── routes/              # HTTP routes (one router per resource)
+│   ├── services/            # Business logic and SQL
+│   ├── test/                # node:test suites
+│   ├── scripts/             # Migrations, cluster launcher, load test
+│   └── server.js            # Application entry point
+├── frontend/                # React SPA
+│   ├── public/
 │   ├── src/
-│   │   ├── components/ # 公共组件
-│   │   ├── pages/      # 页面组件
-│   │   ├── services/   # API 服务
-│   │   ├── App.js      # 应用主组件
-│   │   └── index.js    # 入口文件
-│   └── package.json
-├── gym_management_system.sql  # 数据库脚本
+│   │   ├── components/      # Layouts and shared widgets
+│   │   ├── hooks/           # Route guards
+│   │   ├── i18n/            # Language context and message catalog
+│   │   ├── pages/           # Admin and member screens
+│   │   ├── services/        # API client
+│   │   ├── utils/           # Date and session helpers
+│   │   ├── App.js
+│   │   └── index.js
+│   └── test/
+├── gym_management_system.sql  # Database schema and seed data
 └── README.md
 ```
 
-## 功能模块
+> The legacy Spring Boot sources under `src/` and `pom.xml` are kept for reference only.
+> The running system is `backend/` + `frontend/`.
 
-### 管理员功能
-1. 管理员登录
-2. 管理员主页（统计信息）
-3. 会员管理（增删改查）
-4. 员工管理（增删改查）
-5. 器材管理（增删改查）
-6. 课程管理（增删改查、查看报名信息）
+## Features
 
-### 会员功能
-1. 会员登录
-2. 会员主页
-3. 个人信息管理（查看、修改）
-4. 课程报名
-5. 我的课程（查看、退课）
+### Administrator
 
-## 数据库设计
+1. Sign in with an admin account
+2. Dashboard with member, employee and equipment totals
+3. Member management (create, read, update, delete, search)
+4. Employee management
+5. Equipment management
+6. Class management and per-class enrolment lists
+7. Notifications: send to all members or selected members, view history, delete
+8. Batch updates of purchased sessions and membership duration
 
-系统包含以下数据表：
-- `admin` - 管理员表
-- `member` - 会员表
-- `employee` - 员工表
-- `equipment` - 器材表
-- `class_table` - 课程表
-- `class_order` - 课程报名表
+### Member
 
-详细数据库结构请参考 `gym_management_system.sql` 文件。
+1. Sign in with a member account
+2. Personal dashboard with membership status
+3. View and edit profile (including photo)
+4. Browse and enrol in classes, withdraw from a class
+5. Book equipment, cancel a booking, view booking details
+6. Training plans and logs per booking
+7. Share booking requests, accepted or rejected by the booking owner
+8. Receive system notifications
 
-## 安装与运行
+## Database
 
-### 前置要求
-- Node.js (推荐 v16+)
+Core tables:
+
+- `admin` — administrator accounts
+- `member` — member accounts and membership
+- `employee` — staff
+- `equipment` — gym equipment
+- `class_table` — classes
+- `class_order` — class enrolments
+- `equipment_booking` — equipment bookings
+- `equipment_share_request` — booking share requests
+- `equipment_training_session` / `equipment_training_record` — training plans and logs
+- `notification` — system notifications
+
+See `gym_management_system.sql` for the full schema.
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 18+ (tested on 22)
 - MySQL 8.0+
-- npm 或 yarn
+- npm
 
-### 数据库配置
+### Database setup
 
-1. 创建数据库：
 ```sql
 CREATE DATABASE gym_management_system;
 ```
 
-2. 导入数据库脚本：
 ```bash
 mysql -u root -p gym_management_system < gym_management_system.sql
+mysql -u root -p gym_management_system < notification.sql
 ```
 
-### 后端配置与运行
+Optional migrations add the columns and indexes the current code relies on:
 
-1. 进入后端目录：
 ```bash
 cd backend
+npm run migrate
 ```
 
-2. 安装依赖：
+### Backend
+
 ```bash
+cd backend
 npm install
 ```
 
-3. 配置数据库连接（创建 `.env` 文件）：
+Create `backend/.env`:
+
 ```env
 PORT=3001
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=你的数据库密码
+DB_PASSWORD=your-database-password
 DB_NAME=gym_management_system
-JWT_SECRET=your-secret-key-change-in-production
+
+# Required in production: at least 16 characters.
+# Generate one with:
+#   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+JWT_SECRET=change-me-to-a-long-random-string
 ```
 
-4. 启动后端服务：
+Start the server:
+
 ```bash
-npm start
-# 或开发模式（自动重启）
-npm run dev
+npm start        # production
+npm run dev      # reload on change
+npm test         # node:test suite
 ```
 
-后端服务将运行在 `http://localhost:3001`
+The API listens on `http://localhost:3001`.
 
-### 前端配置与运行
+### Frontend
 
-1. 进入前端目录：
 ```bash
 cd frontend
-```
-
-2. 安装依赖：
-```bash
 npm install
+npm start        # development server on http://localhost:3000
+npm run build    # production bundle
+npm test         # helper unit tests
 ```
 
-3. 启动开发服务器：
-```bash
-npm start
-```
+The dev server proxies `/api` to `http://localhost:3001`.
 
-前端应用将运行在 `http://localhost:3000`
+## Authentication
 
-## API 接口
+- `POST /api/login/admin` and `POST /api/login/user` verify the password and return a
+  signed JWT (8 hours by default, configurable with `JWT_EXPIRES_IN`).
+- Every business route requires `Authorization: Bearer <token>`.
+- Authorization is explicit per route: admin-only writes, shared reads for classes and
+  equipment, and owner-only access for member-scoped data.
+- Passwords are stored as bcrypt hashes. Rows that still hold a legacy plaintext password
+  can sign in and are upgraded to a hash on that first successful login.
+- Set `JWT_SECRET` in production; the server refuses to start without it.
 
-### 登录接口
-- `POST /api/login/admin` - 管理员登录
-- `POST /api/login/user` - 会员登录
+See `JWT_SECRET说明.md` for the full configuration and migration notes (written in Chinese).
 
-### 会员管理接口
-- `GET /api/member/all` - 获取所有会员
-- `GET /api/member/:account` - 根据账号获取会员
-- `POST /api/member/add` - 添加会员
-- `PUT /api/member/update` - 更新会员信息
-- `DELETE /api/member/:account` - 删除会员
+## Internationalisation
 
-### 员工管理接口
-- `GET /api/employee/all` - 获取所有员工
-- `GET /api/employee/:account` - 根据账号获取员工
-- `POST /api/employee/add` - 添加员工
-- `PUT /api/employee/update` - 更新员工信息
-- `DELETE /api/employee/:account` - 删除员工
+- `frontend/src/i18n/messages.js` holds the `zh` and `en` catalogs as flat key/value maps.
+- `useI18n()` exposes `t(key, params)` and `setLanguage()`.
+- The selected language is stored in `localStorage` and survives a reload.
+- Missing keys fall back to Chinese, so partial translation is safe to ship.
 
-### 器材管理接口
-- `GET /api/equipment/all` - 获取所有器材
-- `GET /api/equipment/:id` - 根据ID获取器材
-- `POST /api/equipment/add` - 添加器材
-- `PUT /api/equipment/update` - 更新器材信息
-- `DELETE /api/equipment/:id` - 删除器材
+To add a language, append its code to `LANGUAGES` in `frontend/src/i18n/index.js` and
+add a matching catalog.
 
-### 课程管理接口
-- `GET /api/class/all` - 获取所有课程
-- `GET /api/class/:id` - 根据ID获取课程
-- `POST /api/class/add` - 添加课程
-- `DELETE /api/class/:id` - 删除课程
-- `GET /api/class/:id/orders` - 获取课程报名信息
+## Default accounts
 
-### 会员用户接口
-- `GET /api/user/info/:account` - 获取会员信息
-- `PUT /api/user/info/update` - 更新会员信息
-- `GET /api/user/classes/:account` - 获取会员课程
-- `POST /api/user/apply` - 报名课程
-- `DELETE /api/user/classes/:orderId` - 退课
+| Role    | Account     | Password |
+|---------|-------------|----------|
+| Admin   | `1001`      | `123456` |
+| Member  | `202100788` | `123456` |
 
-## 默认账号
+Change these before deploying anywhere reachable from a network.
 
-### 管理员账号
-- 账号：1001
-- 密码：123456
+## License
 
-### 会员账号
-- 账号：202100788
-- 密码：123456
-
-更多测试账号请查看数据库脚本。
-
-## 开发说明
-
-### 后端开发
-- 使用 Express 框架构建 RESTful API
-- 使用 mysql2 进行数据库操作
-- 服务层负责业务逻辑，路由层负责请求处理
-
-### 前端开发
-- 使用 React Hooks 进行状态管理
-- 使用 React Router 进行路由管理
-- 使用 Axios 进行 HTTP 请求
-- 使用 Bootstrap 5 进行 UI 设计
-
-## 注意事项
-
-1. 确保 MySQL 服务已启动
-2. 确保数据库连接配置正确
-3. 后端和前端需要同时运行
-4. 前端开发服务器默认代理后端 API 请求到 `http://localhost:3001`
-
-## 许可证
-
-ISC License
+ISC

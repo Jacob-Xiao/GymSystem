@@ -4,9 +4,12 @@ import { formatDateTime } from '../../utils/date';
 import UserLayout from '../../components/UserLayout';
 import { equipmentBookingAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const EquipmentBooking = () => {
   const ready = useAuthGuard('user');
+  const { t, language } = useI18n();
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US';
   const { account } = useParams();
   const [equipmentList, setEquipmentList] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
@@ -71,7 +74,7 @@ const EquipmentBooking = () => {
     setError('');
 
     if (!formData.startTime || !formData.endTime) {
-      setError('请选择开始时间和结束时间');
+      setError(t('user.booking.selectTime'));
       return;
     }
 
@@ -85,15 +88,15 @@ const EquipmentBooking = () => {
       });
 
       if (response.data.success) {
-        alert('预约成功！');
+        alert(t('user.booking.success'));
         setShowBookingForm(false);
         setFormData({ startTime: '', endTime: '', locationNote: '' });
         fetchEquipmentBookings(selectedEquipment.equipment_id);
       } else {
-        setError(response.data.message || '预约失败');
+        setError(response.data.message || t('user.booking.failed'));
       }
     } catch (error) {
-      setError(error.response?.data?.message || '预约失败');
+      setError(error.response?.data?.message || t('user.booking.failed'));
     }
   };
 
@@ -101,7 +104,7 @@ const EquipmentBooking = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </UserLayout>
     );
@@ -110,21 +113,21 @@ const EquipmentBooking = () => {
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">器材预约</h1>
+        <h1 className="mt-4">{t('user.booking.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/user/main">主页</Link>
+            <Link to="/user/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">器材预约</li>
+          <li className="breadcrumb-item active">{t('user.booking.title')}</li>
         </ol>
 
         <div className="row">
-          {/* 器材列表 */}
+          {/* equipment list */}
           <div className="col-md-4">
             <div className="card mb-4">
               <div className="card-header">
                 <i className="bi bi-list me-1"></i>
-                器材列表
+                {t('user.booking.list')}
               </div>
               <div className="card-body">
                 <div className="list-group">
@@ -165,7 +168,7 @@ const EquipmentBooking = () => {
                           onClick={(e) => e.stopPropagation()}
                           style={{ whiteSpace: 'nowrap' }}
                         >
-                          详情
+                          {t('common.details')}
                         </Link>
                       </div>
                     </div>
@@ -175,7 +178,7 @@ const EquipmentBooking = () => {
             </div>
           </div>
 
-          {/* 预约信息 */}
+          {/* bookings */}
           <div className="col-md-8">
             {selectedEquipment ? (
               <div className="card mb-4">
@@ -183,20 +186,20 @@ const EquipmentBooking = () => {
                   <div className="d-flex justify-content-between align-items-center">
                     <div>
                       <i className="bi bi-gear me-1"></i>
-                      {selectedEquipment.equipment_name} - 预约信息
+                      {selectedEquipment.equipment_name} - {t('user.booking.info')}
                     </div>
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={() => setShowBookingForm(!showBookingForm)}
                     >
-                      {showBookingForm ? '取消预约' : '新建预约'}
+                      {showBookingForm ? t('user.booking.cancelForm') : t('user.booking.new')}
                     </button>
                   </div>
                 </div>
                 <div className="card-body">
                   {showBookingForm ? (
                     <div>
-                      <h5>创建预约</h5>
+                      <h5>{t('user.booking.create')}</h5>
                       {error && (
                         <div className="alert alert-danger" role="alert">
                           {error}
@@ -204,7 +207,7 @@ const EquipmentBooking = () => {
                       )}
                       <form onSubmit={handleCreateBooking}>
                         <div className="mb-3">
-                          <label className="form-label">开始时间 *</label>
+                          <label className="form-label">{t('user.booking.startTime')} *</label>
                           <input
                             type="datetime-local"
                             className="form-control"
@@ -215,7 +218,7 @@ const EquipmentBooking = () => {
                           />
                         </div>
                         <div className="mb-3">
-                          <label className="form-label">结束时间 *</label>
+                          <label className="form-label">{t('user.booking.endTime')} *</label>
                           <input
                             type="datetime-local"
                             className="form-control"
@@ -226,18 +229,18 @@ const EquipmentBooking = () => {
                           />
                         </div>
                         <div className="mb-3">
-                          <label className="form-label">训练地址备注</label>
+                          <label className="form-label">{t('user.booking.locationNote')}</label>
                           <textarea
                             className="form-control"
                             name="locationNote"
                             value={formData.locationNote}
                             onChange={handleFormChange}
                             rows="3"
-                            placeholder="可选：备注具体的训练地点或说明"
+                            placeholder={t('user.booking.locationNotePlaceholder')}
                           />
                         </div>
                         <button type="submit" className="btn btn-primary">
-                          提交预约
+                          {t('user.booking.submit')}
                         </button>
                         <button
                           type="button"
@@ -247,32 +250,32 @@ const EquipmentBooking = () => {
                             setError('');
                           }}
                         >
-                          取消
+                          {t('common.cancel')}
                         </button>
                       </form>
                     </div>
                   ) : bookings.length > 0 ? (
                     <div>
-                      <h5>当前预约信息</h5>
+                      <h5>{t('user.booking.current')}</h5>
                       {bookings.map((booking) => (
                         <div key={booking.booking_id} className="card mb-3">
                           <div className="card-body">
                             <div className="d-flex justify-content-between align-items-start">
                               <div>
-                                <h6>预约会员：{booking.member_name} ({booking.member_account})</h6>
+                                <h6>{t('user.booking.member')}: {booking.member_name} ({booking.member_account})</h6>
                                 <p className="mb-1">
-                                  <strong>时间：</strong>
-                                  {formatDateTime(booking.start_time)} - {formatDateTime(booking.end_time)}
+                                  <strong>{t('user.booking.time')}</strong>
+                                  {formatDateTime(booking.start_time, locale)} - {formatDateTime(booking.end_time, locale)}
                                 </p>
                                 {booking.location_note && (
                                   <p className="mb-1">
-                                    <strong>训练地址备注：</strong>
+                                    <strong>{t('user.booking.locationNote')}</strong>
                                     {booking.location_note}
                                   </p>
                                 )}
                                 <p className="mb-0">
                                   <small className="text-muted">
-                                    创建时间：{formatDateTime(booking.created_at)}
+                                    {t('user.booking.createdAt')}: {formatDateTime(booking.created_at, locale)}
                                   </small>
                                 </p>
                               </div>
@@ -281,7 +284,7 @@ const EquipmentBooking = () => {
                                   to={`/user/equipment-booking/detail/${booking.booking_id}/${account}`}
                                   className="btn btn-sm btn-info me-2"
                                 >
-                                  查看详情
+                                  {t('common.details')}
                                 </Link>
                                 {parseInt(booking.member_account) !== parseInt(account) && (
                                   <button
@@ -292,13 +295,13 @@ const EquipmentBooking = () => {
                                           booking.booking_id,
                                           parseInt(account)
                                         );
-                                        alert('分享请求已提交！');
+                                        alert(t('user.booking.shareSubmitted'));
                                       } catch (error) {
-                                        alert(error.response?.data?.message || '提交失败');
+                                        alert(error.response?.data?.message || t('user.booking.shareFailed'));
                                       }
                                     }}
                                   >
-                                    申请分享
+                                    {t('user.booking.applyShare')}
                                   </button>
                                 )}
                               </div>
@@ -309,13 +312,13 @@ const EquipmentBooking = () => {
                     </div>
                   ) : (
                     <div className="text-center py-5">
-                      <h5>该器材当前无预约</h5>
-                      <p className="text-muted">您可以创建新的预约</p>
+                      <h5>{t('user.booking.none')}</h5>
+                      <p className="text-muted">{t('user.booking.canCreate')}</p>
                       <button
                         className="btn btn-primary"
                         onClick={() => setShowBookingForm(true)}
                       >
-                        创建预约
+                        {t('user.booking.create')}
                       </button>
                     </div>
                   )}
@@ -324,7 +327,7 @@ const EquipmentBooking = () => {
             ) : (
               <div className="card mb-4">
                 <div className="card-body text-center py-5">
-                  <p className="text-muted">请从左侧选择器材查看预约信息</p>
+                  <p className="text-muted">{t('user.booking.selectPrompt')}</p>
                 </div>
               </div>
             )}

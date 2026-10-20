@@ -3,10 +3,12 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { employeeAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const UpdateEmployee = () => {
   const navigate = useNavigate();
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const { account } = useParams();
   const [formData, setFormData] = useState({
     employeeAccount: account,
@@ -34,11 +36,11 @@ const UpdateEmployee = () => {
         });
       }
     } catch (error) {
-      setError('加载员工信息失败');
+      setError(t('employee.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [account]);
+  }, [account, t]);
 
   useEffect(() => {
     if (ready) fetchEmployee();
@@ -68,10 +70,10 @@ const UpdateEmployee = () => {
       if (response.data.success) {
         navigate('/admin/employees');
       } else {
-        setError(response.data.message || '更新失败');
+        setError(response.data.message || t('member.update.failed'));
       }
     } catch (error) {
-      setError(error.response?.data?.message || '更新失败');
+      setError(error.response?.data?.message || t('member.update.failed'));
     }
   };
 
@@ -79,7 +81,7 @@ const UpdateEmployee = () => {
     return (
       <AdminLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </AdminLayout>
     );
@@ -88,20 +90,20 @@ const UpdateEmployee = () => {
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">修改员工信息</h1>
+        <h1 className="mt-4">{t('employee.edit.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to="/admin/employees">员工管理</Link>
+            <Link to="/admin/employees">{t('admin.nav.employees')}</Link>
           </li>
-          <li className="breadcrumb-item active">修改员工信息</li>
+          <li className="breadcrumb-item active">{t('employee.edit.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-person-check me-1"></i>
-            修改员工信息
+            {t('employee.edit.title')}
           </div>
           <div className="card-body">
             {error && (
@@ -112,7 +114,7 @@ const UpdateEmployee = () => {
             <form onSubmit={handleSubmit}>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">员工账号</label>
+                  <label className="form-label">{t('employee.field.account')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -121,7 +123,7 @@ const UpdateEmployee = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">姓名</label>
+                  <label className="form-label">{t('employee.field.name')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -134,7 +136,7 @@ const UpdateEmployee = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">性别</label>
+                  <label className="form-label">{t('employee.field.gender')}</label>
                   <select
                     className="form-control"
                     name="employeeGender"
@@ -142,13 +144,13 @@ const UpdateEmployee = () => {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">请选择</option>
-                    <option value="男">男</option>
-                    <option value="女">女</option>
+                    <option value="">{t('common.selectPlaceholder')}</option>
+                    <option value={t('common.male')}>{t('common.male')}</option>
+                    <option value={t('common.female')}>{t('common.female')}</option>
                   </select>
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">年龄</label>
+                  <label className="form-label">{t('employee.field.age')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -160,7 +162,7 @@ const UpdateEmployee = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">职务</label>
+                  <label className="form-label">{t('employee.field.staff')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -173,7 +175,7 @@ const UpdateEmployee = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-12">
-                  <label className="form-label">备注信息</label>
+                  <label className="form-label">{t('employee.field.message')}</label>
                   <textarea
                     className="form-control"
                     name="employeeMessage"
@@ -185,10 +187,10 @@ const UpdateEmployee = () => {
               </div>
               <div className="mt-4 mb-0">
                 <button type="submit" className="btn btn-primary">
-                  保存
+                  {t('common.save')}
                 </button>
                 <Link to="/admin/employees" className="btn btn-secondary ms-2">
-                  取消
+                  {t('common.cancel')}
                 </Link>
               </div>
             </form>

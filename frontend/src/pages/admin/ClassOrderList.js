@@ -3,10 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { classAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const ClassOrderList = () => {
   const { classId } = useParams();
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,7 +33,7 @@ const ClassOrderList = () => {
     return (
       <AdminLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </AdminLayout>
     );
@@ -40,33 +42,33 @@ const ClassOrderList = () => {
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">课程报名信息</h1>
+        <h1 className="mt-4">{t('class.orders.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to="/admin/classes">课程管理</Link>
+            <Link to="/admin/classes">{t('class.list.title')}</Link>
           </li>
-          <li className="breadcrumb-item active">课程报名信息</li>
+          <li className="breadcrumb-item active">{t('class.orders.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-table me-1"></i>
-            报名列表
+            {t('class.orders.cardTitle')}
           </div>
           <div className="card-body">
             <div className="table-responsive">
               <table className="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>报名ID</th>
-                    <th>课程ID</th>
-                    <th>课程名称</th>
-                    <th>教练</th>
-                    <th>会员姓名</th>
-                    <th>会员账号</th>
-                    <th>开课时间</th>
+                    <th>{t('class.field.orderId')}</th>
+                    <th>{t('class.field.id')}</th>
+                    <th>{t('class.field.name')}</th>
+                    <th>{t('class.field.coach')}</th>
+                    <th>{t('class.field.memberName')}</th>
+                    <th>{t('class.field.memberAccount')}</th>
+                    <th>{t('class.field.begin')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -85,7 +87,7 @@ const ClassOrderList = () => {
                   ) : (
                     <tr>
                       <td colSpan="7" className="text-center">
-                        暂无报名信息
+                        {t('class.orders.empty')}
                       </td>
                     </tr>
                   )}
@@ -94,7 +96,7 @@ const ClassOrderList = () => {
             </div>
             <div className="mt-3">
               <Link to="/admin/classes" className="btn btn-secondary">
-                返回
+                {t('common.back')}
               </Link>
             </div>
           </div>

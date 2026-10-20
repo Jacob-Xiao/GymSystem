@@ -2,18 +2,20 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginAPI } from '../services/api';
 import './Login.css';
+import { useI18n } from '../i18n';
 
 const UserLogin = () => {
   const [memberAccount, setMemberAccount] = useState('');
   const [memberPassword, setMemberPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!memberAccount || !memberPassword) {
-      setError('请输入账号和密码');
+      setError(t('login.required'));
       return;
     }
 
@@ -27,10 +29,10 @@ const UserLogin = () => {
         sessionStorage.setItem('member', JSON.stringify(response.data.member));
         navigate(`/user/main`);
       } else {
-        setError(response.data.message || '登录失败');
+        setError(response.data.message || t('login.failed'));
       }
     } catch (err) {
-      setError(err.response?.data?.message || '登录失败，请检查网络连接');
+      setError(err.response?.data?.message || t('login.networkError'));
     }
   };
 
@@ -41,7 +43,7 @@ const UserLogin = () => {
           <div className="col-lg-5">
             <div className="card shadow-lg border-0 rounded-lg mt-5">
               <div className="card-header">
-                <h3 className="text-center font-weight-light my-4">会员登录</h3>
+                <h3 className="text-center font-weight-light my-4">{t('login.user.title')}</h3>
               </div>
               <div className="card-body">
                 <form onSubmit={handleSubmit}>
@@ -50,7 +52,7 @@ const UserLogin = () => {
                       className="form-control"
                       id="inputAccount"
                       type="text"
-                      placeholder="账号"
+                      placeholder={t('login.account')}
                       value={memberAccount}
                       onChange={(e) => setMemberAccount(e.target.value)}
                       onKeyPress={(e) => {
@@ -59,18 +61,18 @@ const UserLogin = () => {
                         }
                       }}
                     />
-                    <label htmlFor="inputAccount">账号</label>
+                    <label htmlFor="inputAccount">{t('login.account')}</label>
                   </div>
                   <div className="form-floating mb-3">
                     <input
                       className="form-control"
                       id="inputPassword"
                       type="password"
-                      placeholder="密码"
+                      placeholder={t('login.password')}
                       value={memberPassword}
                       onChange={(e) => setMemberPassword(e.target.value)}
                     />
-                    <label htmlFor="inputPassword">密码</label>
+                    <label htmlFor="inputPassword">{t('login.password')}</label>
                   </div>
                   {error && (
                     <div className="alert alert-danger" role="alert">
@@ -79,10 +81,10 @@ const UserLogin = () => {
                   )}
                   <div className="d-flex align-items-center justify-content-between mt-4 mb-0">
                     <a className="small" href="/admin/login">
-                      管理员登录
+                      {t('login.toAdmin')}
                     </a>
                     <button className="btn btn-primary" type="submit">
-                      登录
+                      {t('login.submit')}
                     </button>
                   </div>
                 </form>

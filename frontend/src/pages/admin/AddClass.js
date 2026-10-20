@@ -3,10 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { classAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const AddClass = () => {
   const navigate = useNavigate();
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     classId: '',
     className: '',
@@ -28,7 +30,7 @@ const AddClass = () => {
     setError('');
 
     if (!formData.classId || !formData.className || !formData.classBegin || !formData.classTime || !formData.coach) {
-      setError('请填写所有必填项');
+      setError(t('class.required'));
       return;
     }
 
@@ -45,7 +47,7 @@ const AddClass = () => {
         formattedClassBegin = `${year}年${month}月${day}日 ${hours}:${minutes}`;
       }
       
-      // Format classTime with "分钟" suffix
+      // Format classTime with t('class.minutes') suffix
       const formattedClassTime = formData.classTime ? `${formData.classTime}分钟` : '';
 
       const response = await classAPI.add({
@@ -59,34 +61,34 @@ const AddClass = () => {
       if (response.data.success) {
         navigate('/admin/classes');
       } else {
-        setError(response.data.message || '添加失败');
+        setError(response.data.message || t('member.add.failed'));
       }
     } catch (error) {
-      setError(error.response?.data?.message || '添加失败');
+      setError(error.response?.data?.message || t('member.add.failed'));
     }
   };
 
   if (!ready) {
-    return <div className="text-center mt-5">加载中...</div>;
+    return <div className="text-center mt-5">{t('common.loading')}</div>;
   }
 
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">添加课程</h1>
+        <h1 className="mt-4">{t('class.add.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to="/admin/classes">课程管理</Link>
+            <Link to="/admin/classes">{t('admin.nav.classes')}</Link>
           </li>
-          <li className="breadcrumb-item active">添加课程</li>
+          <li className="breadcrumb-item active">{t('class.add.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-calendar-plus me-1"></i>
-            添加课程信息
+            {t('class.add.cardTitle')}
           </div>
           <div className="card-body">
             {error && (
@@ -97,7 +99,7 @@ const AddClass = () => {
             <form onSubmit={handleSubmit}>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">课程ID *</label>
+                  <label className="form-label">{t('class.field.id')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -108,7 +110,7 @@ const AddClass = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">课程名称 *</label>
+                  <label className="form-label">{t('class.field.name')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -121,7 +123,7 @@ const AddClass = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">开课时间 *</label>
+                  <label className="form-label">{t('class.field.begin')}</label>
                   <input
                     type="datetime-local"
                     className="form-control"
@@ -132,7 +134,7 @@ const AddClass = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">课程时长 *</label>
+                  <label className="form-label">{t('class.field.duration')}</label>
                   <div className="input-group">
                     <input
                       type="number"
@@ -143,13 +145,13 @@ const AddClass = () => {
                       min="1"
                       required
                     />
-                    <span className="input-group-text">分钟</span>
+                    <span className="input-group-text">{t('class.minutes')}</span>
                   </div>
                 </div>
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">教练 *</label>
+                  <label className="form-label">{t('class.field.coach')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -162,10 +164,10 @@ const AddClass = () => {
               </div>
               <div className="mt-4 mb-0">
                 <button type="submit" className="btn btn-primary">
-                  添加
+                  {t('common.add')}
                 </button>
                 <Link to="/admin/classes" className="btn btn-secondary ms-2">
-                  取消
+                  {t('common.cancel')}
                 </Link>
               </div>
             </form>

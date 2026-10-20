@@ -3,14 +3,17 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { classAPI, userAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const ApplyClass = () => {
   const navigate = useNavigate();
   const ready = useAuthGuard('user');
+  const { t } = useI18n();
   const { account } = useParams();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
   // Classes this member already joined: the list marks them so the same course cannot be
   // submitted twice from the picker.
   const [enrolledClassIds, setEnrolledClassIds] = useState(new Set());
@@ -43,19 +46,23 @@ const ApplyClass = () => {
 
   const handleApply = async (classId) => {
     setMessage('');
+    setIsSuccess(false);
     try {
       const response = await userAPI.applyClass(classId, parseInt(account));
       if (response.data.success) {
-        setMessage('报名成功！');
+        setIsSuccess(true);
+        setMessage(t('user.apply.success'));
         setEnrolledClassIds((prev) => new Set(prev).add(Number(classId)));
         setTimeout(() => {
           navigate(`/user/classes/${account}`);
         }, 1500);
       } else {
-        setMessage(response.data.message || '报名失败');
+        setIsSuccess(false);
+        setMessage(response.data.message || t('user.apply.failed'));
       }
     } catch (error) {
-      setMessage(error.response?.data?.message || '报名失败');
+      setIsSuccess(false);
+      setMessage(error.response?.data?.message || t('user.apply.failed'));
     }
   };
 
@@ -63,7 +70,7 @@ const ApplyClass = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </UserLayout>
     );
@@ -72,34 +79,34 @@ const ApplyClass = () => {
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">报名选课</h1>
+        <h1 className="mt-4">{t('user.apply.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/user/main">主页</Link>
+            <Link to="/user/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">报名选课</li>
+          <li className="breadcrumb-item active">{t('user.apply.title')}</li>
         </ol>
         {message && (
-          <div className={`alert ${message.includes('成功') ? 'alert-success' : 'alert-danger'}`}>
+          <div className={`alert ${isSuccess ? 'alert-success' : 'alert-danger'}`}>
             {message}
           </div>
         )}
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-calendar-plus me-1"></i>
-            可选课程列表
+            {t('user.apply.cardTitle')}
           </div>
           <div className="card-body">
             <div className="table-responsive">
               <table className="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>课程ID</th>
-                    <th>课程名称</th>
-                    <th>开课时间</th>
-                    <th>课程时长</th>
-                    <th>教练</th>
-                    <th>操作</th>
+                    <th>{t('class.field.id')}</th>
+                    <th>{t('class.field.name')}</th>
+                    <th>{t('class.field.begin')}</th>
+                    <th>{t('class.field.duration')}</th>
+                    <th>{t('class.field.coach')}</th>
+                    <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -119,7 +126,7 @@ const ApplyClass = () => {
                               onClick={() => handleApply(classItem.class_id)}
                               disabled={enrolled}
                             >
-                              {enrolled ? '已报名' : '报名'}
+                              {enrolled ? t('user.apply.enrolled') : t('user.apply.action')}
                             </button>
                           </td>
                         </tr>
@@ -128,7 +135,7 @@ const ApplyClass = () => {
                   ) : (
                     <tr>
                       <td colSpan="6" className="text-center">
-                        暂无可选课程
+                        {t('user.apply.empty')}
                       </td>
                     </tr>
                   )}
@@ -137,7 +144,7 @@ const ApplyClass = () => {
             </div>
             <div className="mt-3">
               <Link to={`/user/classes/${account}`} className="btn btn-secondary">
-                返回我的课程
+                {t('user.apply.backToMyClasses')}
               </Link>
             </div>
           </div>
