@@ -156,6 +156,17 @@ const equipmentBookingService = {
     return rows;
   },
 
+  // 判断某个预约是否已通过“接受分享请求”共享给指定会员
+  async isBookingSharedWith(bookingId, memberAccount) {
+    const [rows] = await db.execute(
+      `SELECT 1 FROM equipment_share_request
+        WHERE booking_id = ? AND requester_account = ? AND status = 'accepted'
+        LIMIT 1`,
+      [bookingId, memberAccount]
+    );
+    return rows.length > 0;
+  },
+
   // 创建分享请求
   //
   // Locks the booking row so the "already pending?" check and the insert are atomic;

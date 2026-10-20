@@ -21,7 +21,9 @@ const AdminLogin = () => {
       const response = await loginAPI.adminLogin(parseInt(adminAccount), adminPassword);
       
       if (response.data.success) {
-        // Store admin info and stats in sessionStorage
+        // Store the signed token alongside the account: the API client attaches it to
+        // every subsequent request and the guards treat its presence as the session.
+        sessionStorage.setItem('authToken', response.data.token);
         sessionStorage.setItem('adminAccount', response.data.admin.adminAccount);
         sessionStorage.setItem('adminStats', JSON.stringify(response.data.stats));
         navigate('/admin/main');

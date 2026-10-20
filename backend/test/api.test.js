@@ -26,9 +26,41 @@ function close(server) {
   return new Promise((resolve) => server.close(resolve));
 }
 
+// Business routes now require a bearer token. Log in once and reuse the admin token for
+// every request in this file rather than special-casing each test.
+let adminToken = null;
+
+async function loginAdmin(targetUrl) {
+  const payload = Buffer.from(JSON.stringify({ adminAccount: 1001, adminPassword: '123456' }));
+  const res = await new Promise((resolve, reject) => {
+    const req = http.request(
+      `${targetUrl}/api/login/admin`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': payload.length }
+      },
+      (response) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve(JSON.parse(Buffer.concat(chunks).toString())));
+      }
+    );
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+
+  assert.equal(res.success, true, 'admin login fixture must succeed');
+  return res.token;
+}
+
+function withAuth(headers = {}) {
+  return adminToken ? { ...headers, Authorization: `Bearer ${adminToken}` } : headers;
+}
+
 function request(baseUrl, path, headers = {}, method = 'GET') {
   return new Promise((resolve, reject) => {
-    const req = http.request(`${baseUrl}${path}`, { method, headers }, (res) => {
+    const req = http.request(`${baseUrl}${path}`, { method, headers: withAuth(headers) }, (res) => {
       const chunks = [];
       res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => resolve({
@@ -62,6 +94,7 @@ let baseUrl;
 
 test.before(async () => {
   ({ server, baseUrl } = await listen(buildApp()));
+  adminToken = await loginAdmin(baseUrl);
 });
 
 test.after(async () => {
@@ -198,9 +231,13 @@ test('rate limiter rejects requests over the configured ceiling with 429', async
   const { server: limitedServer, baseUrl: limitedUrl } = await listen(limited);
 
   try {
-    const first = await request(limitedUrl, '/api/class/all');
-    const second = await request(limitedUrl, '/api/class/all');
-    const third = await request(limitedUrl, '/api/class/all');
+    // A separate app instance means a separate limiter window; the login call itself
+    // would consume one of the two allowed requests, so take the token from the first
+    // app and only count the business requests below.
+    const limitedAuth = withAuth();
+    const first = await request(limitedUrl, '/api/class/all', limitedAuth);
+    const second = await request(limitedUrl, '/api/class/all', limitedAuth);
+    const third = await request(limitedUrl, '/api/class/all', limitedAuth);
 
     assert.equal(first.status, 200);
     assert.equal(second.status, 200);

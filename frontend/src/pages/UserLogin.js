@@ -21,7 +21,9 @@ const UserLogin = () => {
       const response = await loginAPI.memberLogin(parseInt(memberAccount), memberPassword);
       
       if (response.data.success) {
-        // Store member info in sessionStorage
+        // Store the signed token alongside the profile: the API client attaches it to
+        // every subsequent request and the guards treat its presence as the session.
+        sessionStorage.setItem('authToken', response.data.token);
         sessionStorage.setItem('member', JSON.stringify(response.data.member));
         navigate(`/user/main`);
       } else {

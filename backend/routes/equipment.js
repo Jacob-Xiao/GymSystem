@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const equipmentService = require('../services/equipmentService');
+const { authenticate, requireRole } = require('../middleware/auth');
 
 // Get all equipment
-router.get('/all', async (req, res) => {
+router.get('/all', authenticate, requireRole('admin', 'member'), async (req, res) => {
   try {
     const equipment = await equipmentService.findAll();
     res.json({ success: true, data: equipment });
@@ -13,7 +14,7 @@ router.get('/all', async (req, res) => {
 });
 
 // Get equipment by id
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, requireRole('admin', 'member'), async (req, res) => {
   try {
     const equipment = await equipmentService.findById(parseInt(req.params.id));
     if (equipment) {
@@ -27,7 +28,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Add equipment
-router.post('/add', async (req, res) => {
+router.post('/add', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await equipmentService.insert(req.body);
     res.json({ success: true, message: '设备添加成功' });
@@ -37,7 +38,7 @@ router.post('/add', async (req, res) => {
 });
 
 // Update equipment
-router.put('/update', async (req, res) => {
+router.put('/update', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await equipmentService.update(req.body);
     res.json({ success: true, message: '设备信息更新成功' });
@@ -47,7 +48,7 @@ router.put('/update', async (req, res) => {
 });
 
 // Delete equipment
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await equipmentService.deleteById(parseInt(req.params.id));
     res.json({ success: true, message: '设备删除成功' });

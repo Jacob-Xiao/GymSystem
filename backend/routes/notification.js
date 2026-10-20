@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const notificationService = require('../services/notificationService');
 const memberBatchUpdateService = require('../services/memberBatchUpdateService');
+const { authenticate, requireRole, requireSelf } = require('../middleware/auth');
 
 // 创建通知
-router.post('/create', async (req, res) => {
+router.post('/create', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const { title, content, targetType, targetAccounts } = req.body;
     
@@ -40,7 +41,7 @@ router.post('/create', async (req, res) => {
 });
 
 // 获取所有通知
-router.get('/all', async (req, res) => {
+router.get('/all', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const notifications = await notificationService.findAll();
     res.json({ success: true, data: notifications });
@@ -50,7 +51,7 @@ router.get('/all', async (req, res) => {
 });
 
 // 获取单个通知
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const notification = await notificationService.findById(parseInt(req.params.id));
     if (notification) {
@@ -64,7 +65,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // 删除通知
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await notificationService.delete(parseInt(req.params.id));
     res.json({ success: true, message: '通知删除成功' });
@@ -74,7 +75,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // 获取会员收到的通知
-router.get('/member/:account', async (req, res) => {
+router.get('/member/:account', authenticate, requireSelf(['account']), async (req, res) => {
   try {
     const memberAccount = parseInt(req.params.account);
     const notifications = await notificationService.findByMemberAccount(memberAccount);
@@ -85,7 +86,7 @@ router.get('/member/:account', async (req, res) => {
 });
 
 // 批量更新会员信息（课时数和会籍时长）
-router.post('/batch-update-members', async (req, res) => {
+router.post('/batch-update-members', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const { targetType, targetAccounts, cardNextClass, membershipDuration } = req.body;
 

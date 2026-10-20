@@ -1,12 +1,18 @@
 // Session helpers shared by the layouts and page guards.
 //
-// Authentication is client-side only (the project has no JWT or server session): the
-// login page stores an identifier in sessionStorage and every protected page must send
-// the visitor back to the matching login screen when it is missing.
+// Login returns a signed JWT that the API client attaches to every request. The guards
+// require both that token and the matching profile, so a stale profile left in
+// sessionStorage without a token cannot render a protected page.
 
-export const getAdminAccount = () => sessionStorage.getItem('adminAccount');
+export const TOKEN_KEY = 'authToken';
+
+export const getToken = () => sessionStorage.getItem(TOKEN_KEY);
+
+export const getAdminAccount = () =>
+  (getToken() ? sessionStorage.getItem('adminAccount') : null);
 
 export const getMember = () => {
+  if (!getToken()) return null;
   const raw = sessionStorage.getItem('member');
   if (!raw) return null;
   try {
@@ -23,10 +29,12 @@ export const getMemberAccount = () => {
 };
 
 export const clearAdminSession = () => {
+  sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem('adminAccount');
   sessionStorage.removeItem('adminStats');
 };
 
 export const clearMemberSession = () => {
+  sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem('member');
 };

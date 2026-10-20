@@ -32,17 +32,43 @@ function close(server) {
   return new Promise((resolve) => server.close(resolve));
 }
 
+// Business routes now require a bearer token; log in once as the seeded admin.
+let adminToken = null;
+
+async function loginAdmin(targetUrl) {
+  const payload = Buffer.from(JSON.stringify({ adminAccount: 1001, adminPassword: '123456' }));
+  const res = await new Promise((resolve, reject) => {
+    const req = http.request(
+      `${targetUrl}/api/login/admin`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': payload.length }
+      },
+      (response) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve(JSON.parse(Buffer.concat(chunks).toString())));
+      }
+    );
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+  assert.equal(res.success, true, 'admin login fixture must succeed');
+  return res.token;
+}
+
 function request(baseUrl, path, body, method = 'GET') {
   return new Promise((resolve, reject) => {
     const payload = body === undefined ? null : Buffer.from(JSON.stringify(body));
+    const headers = payload
+      ? { 'Content-Type': 'application/json', 'Content-Length': payload.length }
+      : {};
+    if (adminToken) headers.Authorization = `Bearer ${adminToken}`;
+
     const req = http.request(
       `${baseUrl}${path}`,
-      {
-        method,
-        headers: payload
-          ? { 'Content-Type': 'application/json', 'Content-Length': payload.length }
-          : {}
-      },
+      { method, headers },
       (res) => {
         const chunks = [];
         res.on('data', (chunk) => chunks.push(chunk));
@@ -78,6 +104,7 @@ async function seedMember() {
 
 test.before(async () => {
   ({ server, baseUrl } = await listen(buildApp()));
+  adminToken = await loginAdmin(baseUrl);
 });
 
 test.after(async () => {
@@ -176,7 +203,33 @@ test('member detail exposes the photo but never the password', async () => {
 test('user profile endpoint never returns the password', async () => {
   await seedMember();
 
-  const res = await request(baseUrl, `/api/user/info/${TEST_ACCOUNT}`);
+  // `/api/user/*` is scoped to the signed-in member, so use that member's own token
+  // rather than the admin token: an admin is intentionally not allowed to read it here.
+  const login = await request(baseUrl, '/api/login/user', {
+    memberAccount: TEST_ACCOUNT,
+    memberPassword: '123456'
+  }, 'POST');
+  assert.equal(login.status, 200);
+  const memberToken = JSON.parse(login.body).token;
+  assert.ok(memberToken);
+
+  const res = await new Promise((resolve, reject) => {
+    const req = http.request(
+      `${baseUrl}/api/user/info/${TEST_ACCOUNT}`,
+      { headers: { Authorization: `Bearer ${memberToken}` } },
+      (response) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve({
+          status: response.statusCode,
+          body: Buffer.concat(chunks).toString()
+        }));
+      }
+    );
+    req.on('error', reject);
+    req.end();
+  });
+
   assert.equal(res.status, 200);
   const member = JSON.parse(res.body).data;
 

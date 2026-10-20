@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const employeeService = require('../services/employeeService');
 const { insertWithUniqueAccount } = require('../utils/uniqueAccount');
+const { authenticate, requireRole } = require('../middleware/auth');
 
 // Get all employees
-router.get('/all', async (req, res) => {
+router.get('/all', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const employees = await employeeService.findAll();
     res.json({ success: true, data: employees });
@@ -14,7 +15,7 @@ router.get('/all', async (req, res) => {
 });
 
 // Get employee by account
-router.get('/:account', async (req, res) => {
+router.get('/:account', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const employee = await employeeService.findByAccount(parseInt(req.params.account));
     if (employee) {
@@ -28,7 +29,7 @@ router.get('/:account', async (req, res) => {
 });
 
 // Add employee
-router.post('/add', async (req, res) => {
+router.post('/add', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const employee = req.body;
 
@@ -53,7 +54,7 @@ router.post('/add', async (req, res) => {
 });
 
 // Update employee
-router.put('/update', async (req, res) => {
+router.put('/update', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await employeeService.update(req.body);
     res.json({ success: true, message: '员工信息更新成功' });
@@ -63,7 +64,7 @@ router.put('/update', async (req, res) => {
 });
 
 // Delete employee
-router.delete('/:account', async (req, res) => {
+router.delete('/:account', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await employeeService.deleteByAccount(parseInt(req.params.account));
     res.json({ success: true, message: '员工删除成功' });
