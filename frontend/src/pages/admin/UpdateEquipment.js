@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { equipmentAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const UpdateEquipment = () => {
   const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const { id } = useParams();
   const [formData, setFormData] = useState({
     equipmentId: id,
@@ -18,11 +20,7 @@ const UpdateEquipment = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchEquipment();
-  }, [id]);
-
-  const fetchEquipment = async () => {
+  const fetchEquipment = useCallback(async () => {
     try {
       const response = await equipmentAPI.getById(id);
       if (response.data.success && response.data.data.length > 0) {
@@ -42,7 +40,11 @@ const UpdateEquipment = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (ready) fetchEquipment();
+  }, [ready, fetchEquipment]);
 
   const handleChange = (e) => {
     setFormData({

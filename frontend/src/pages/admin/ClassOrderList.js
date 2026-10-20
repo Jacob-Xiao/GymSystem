@@ -1,24 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { classAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const ClassOrderList = () => {
-  const navigate = useNavigate();
   const { classId } = useParams();
+  const ready = useAuthGuard('admin');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const adminAccount = sessionStorage.getItem('adminAccount');
-    if (!adminAccount) {
-      navigate('/admin/login');
-      return;
-    }
-    fetchOrders();
-  }, [classId, navigate]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const response = await classAPI.getOrders(classId);
       if (response.data.success) {
@@ -29,7 +21,11 @@ const ClassOrderList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [classId]);
+
+  useEffect(() => {
+    if (ready) fetchOrders();
+  }, [ready, fetchOrders]);
 
   if (loading) {
     return (

@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { classAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const AddClass = () => {
   const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [formData, setFormData] = useState({
     classId: '',
     className: '',
@@ -63,6 +65,10 @@ const AddClass = () => {
       setError(error.response?.data?.message || '添加失败');
     }
   };
+
+  if (!ready) {
+    return <div className="text-center mt-5">加载中...</div>;
+  }
 
   return (
     <AdminLayout>

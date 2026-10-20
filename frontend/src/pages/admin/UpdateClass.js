@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { classAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const UpdateClass = () => {
   const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const { id } = useParams();
   const [formData, setFormData] = useState({
     classId: id,
@@ -16,11 +18,7 @@ const UpdateClass = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchClass();
-  }, [id]);
-
-  const fetchClass = async () => {
+  const fetchClass = useCallback(async () => {
     try {
       const response = await classAPI.getById(id);
       if (response.data.success) {
@@ -65,7 +63,11 @@ const UpdateClass = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (ready) fetchClass();
+  }, [ready, fetchClass]);
 
   const handleChange = (e) => {
     setFormData({

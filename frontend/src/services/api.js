@@ -2,12 +2,42 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
+// The session token lives in sessionStorage next to the account identifier, so closing
+// the tab ends the session. Keys are shared with utils/session.js.
+export const TOKEN_KEY = 'authToken';
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Attach the bearer token to every request. The backend verifies it on all business
+// routes; without this header those calls return 401.
+api.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// An expired or invalid token would otherwise leave the UI stuck on empty screens.
+// Clear the session and let the page guard send the user back to login.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem('adminAccount');
+      sessionStorage.removeItem('adminStats');
+      sessionStorage.removeItem('member');
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Login APIs
 export const loginAPI = {
@@ -81,8 +111,10 @@ export const equipmentBookingAPI = {
       completed,
       memberAccount
     }),
-  completeSession: (bookingId, sessionId) =>
-    api.post(`/equipment-booking/booking/${bookingId}/session/${sessionId}/complete`),
+  completeSession: (bookingId, sessionId, memberAccount) =>
+    api.post(`/equipment-booking/booking/${bookingId}/session/${sessionId}/complete`, {
+      memberAccount
+    }),
   deleteTrainingSession: (bookingId, sessionId, memberAccount) =>
     api.delete(
       `/equipment-booking/booking/${bookingId}/session/${sessionId}?memberAccount=${memberAccount}`

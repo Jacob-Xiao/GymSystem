@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { formatDateTime } from '../../utils/date';
 import UserLayout from '../../components/UserLayout';
 import { equipmentBookingAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const EquipmentBooking = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('user');
   const { account } = useParams();
   const [equipmentList, setEquipmentList] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
@@ -18,17 +20,7 @@ const EquipmentBooking = () => {
     locationNote: ''
   });
 
-  useEffect(() => {
-    fetchEquipmentList();
-  }, []);
-
-  useEffect(() => {
-    if (selectedEquipment) {
-      fetchEquipmentBookings(selectedEquipment.equipment_id);
-    }
-  }, [selectedEquipment]);
-
-  const fetchEquipmentList = async () => {
+  const fetchEquipmentList = useCallback(async () => {
     try {
       const response = await equipmentBookingAPI.getEquipmentList();
       if (response.data.success) {
@@ -39,9 +31,9 @@ const EquipmentBooking = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchEquipmentBookings = async (equipmentId) => {
+  const fetchEquipmentBookings = useCallback(async (equipmentId) => {
     try {
       const response = await equipmentBookingAPI.getEquipmentBookings(equipmentId);
       if (response.data.success) {
@@ -50,7 +42,17 @@ const EquipmentBooking = () => {
     } catch (error) {
       console.error('Error fetching bookings:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (ready) fetchEquipmentList();
+  }, [ready, fetchEquipmentList]);
+
+  useEffect(() => {
+    if (selectedEquipment) {
+      fetchEquipmentBookings(selectedEquipment.equipment_id);
+    }
+  }, [selectedEquipment, fetchEquipmentBookings]);
 
   const handleEquipmentSelect = (equipment) => {
     setSelectedEquipment(equipment);
@@ -93,25 +95,6 @@ const EquipmentBooking = () => {
     } catch (error) {
       setError(error.response?.data?.message || '预约失败');
     }
-  };
-
-  const formatDateTime = (dateTimeString) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const isEquipmentAvailable = () => {
-    const now = new Date();
-    return bookings.length === 0 || bookings.every(booking => {
-      const endTime = new Date(booking.end_time);
-      return endTime < now;
-    });
   };
 
   if (loading) {

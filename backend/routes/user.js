@@ -3,11 +3,12 @@ const router = express.Router();
 const memberService = require('../services/memberService');
 const classService = require('../services/classService');
 const classOrderService = require('../services/classOrderService');
+const { authenticate, requireRole, requireSelf } = require('../middleware/auth');
 
 // Get user info
-router.get('/info/:account', async (req, res) => {
+router.get('/info/:account', authenticate, requireSelf(['account']), async (req, res) => {
   try {
-    const member = await memberService.findByAccount(parseInt(req.params.account));
+    const member = await memberService.findProfileByAccount(parseInt(req.params.account));
     if (member) {
       res.json({ success: true, data: member });
     } else {
@@ -19,7 +20,7 @@ router.get('/info/:account', async (req, res) => {
 });
 
 // Update user info
-router.put('/info/update', async (req, res) => {
+router.put('/info/update', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     await memberService.update(req.body);
     res.json({ success: true, message: '个人信息更新成功' });
@@ -29,7 +30,7 @@ router.put('/info/update', async (req, res) => {
 });
 
 // Get user classes
-router.get('/classes/:account', async (req, res) => {
+router.get('/classes/:account', authenticate, requireSelf(['account']), async (req, res) => {
   try {
     const orders = await classOrderService.findByMemberAccount(parseInt(req.params.account));
     res.json({ success: true, data: orders });
@@ -39,7 +40,7 @@ router.get('/classes/:account', async (req, res) => {
 });
 
 // Apply for class
-router.post('/apply', async (req, res) => {
+router.post('/apply', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const { classId, memberAccount } = req.body;
 
@@ -89,9 +90,16 @@ router.post('/apply', async (req, res) => {
 });
 
 // Cancel class order
-router.delete('/classes/:orderId', async (req, res) => {
+//
+// The order id alone identifies the row, so ownership is checked before deleting:
+// otherwise any signed-in member could drop somebody else's enrolment by guessing an id.
+router.delete('/classes/:orderId', authenticate, requireRole('member'), async (req, res) => {
   try {
-    await classOrderService.deleteById(parseInt(req.params.orderId));
+    const orderId = parseInt(req.params.orderId, 10);
+    const deleted = await classOrderService.deleteById(orderId, req.user.account);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: '报名记录不存在或无权操作' });
+    }
     res.json({ success: true, message: '退课成功' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

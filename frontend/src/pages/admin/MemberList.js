@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { memberAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
+import { formatDate, membershipRemaining } from '../../utils/date';
 
 const MemberList = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const adminAccount = sessionStorage.getItem('adminAccount');
-    if (!adminAccount) {
-      navigate('/admin/login');
-      return;
-    }
-    fetchMembers();
-  }, [navigate]);
+    if (ready) fetchMembers();
+  }, [ready]);
 
   const fetchMembers = async () => {
     try {
@@ -107,28 +104,22 @@ const MemberList = () => {
                       <td>{member.member_height}</td>
                       <td>{member.member_weight}</td>
                       <td>{member.member_phone}</td>
-                      <td>{member.card_time}</td>
+                      <td>{formatDate(member.card_time)}</td>
                       <td>{member.card_class}</td>
                       <td>{member.card_next_class}</td>
-                      <td>{
-                        (() => {
-                          if (!member.card_time || !member.membership_duration) {
-                            return '未设置';
-                          }
-                          const cardDate = new Date(member.card_time);
-                          const now = new Date();
-                          const monthsDiff = (now.getFullYear() - cardDate.getFullYear()) * 12 + (now.getMonth() - cardDate.getMonth());
-                          const remainingMonths = member.membership_duration - monthsDiff;
-                          if (remainingMonths <= 0) {
-                            return <span className="text-danger">已过期</span>;
-                          } else if (remainingMonths < 1) {
-                            const daysRemaining = Math.ceil((new Date(cardDate.getFullYear(), cardDate.getMonth() + member.membership_duration, cardDate.getDate()) - now) / (1000 * 60 * 60 * 24));
-                            return `${daysRemaining}天`;
-                          } else {
-                            return `${remainingMonths}个月`;
-                          }
-                        })()
-                      }</td>
+                      <td>
+                        {(() => {
+                          const remaining = membershipRemaining(
+                            member.card_time,
+                            member.membership_duration
+                          );
+                          return remaining.expired ? (
+                            <span className="text-danger">{remaining.text}</span>
+                          ) : (
+                            remaining.text
+                          );
+                        })()}
+                      </td>
                       <td>
                         <Link
                           to={`/admin/members/update/${member.member_account}`}

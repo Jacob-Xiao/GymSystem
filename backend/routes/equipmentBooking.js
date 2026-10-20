@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const equipmentBookingService = require('../services/equipmentBookingService');
 const memberService = require('../services/memberService');
+const { authenticate, requireRole, requireSelf } = require('../middleware/auth');
 
 // 获取所有器材列表
-router.get('/equipment/list', async (req, res) => {
+router.get('/equipment/list', authenticate, requireRole('admin', 'member'), async (req, res) => {
   try {
     const equipment = await equipmentBookingService.getAllEquipment();
     res.json({ success: true, data: equipment });
@@ -14,7 +15,7 @@ router.get('/equipment/list', async (req, res) => {
 });
 
 // 获取器材的预约信息
-router.get('/equipment/:equipmentId/bookings', async (req, res) => {
+router.get('/equipment/:equipmentId/bookings', authenticate, requireRole('admin', 'member'), async (req, res) => {
   try {
     const equipmentId = parseInt(req.params.equipmentId);
     const bookings = await equipmentBookingService.getActiveBookingsByEquipment(equipmentId);
@@ -25,7 +26,7 @@ router.get('/equipment/:equipmentId/bookings', async (req, res) => {
 });
 
 // 获取会员的预约列表（显式带上 bookingId 便于前端详情页使用）
-router.get('/member/:memberAccount/bookings', async (req, res) => {
+router.get('/member/:memberAccount/bookings', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const memberAccount = parseInt(req.params.memberAccount);
     const bookings = await equipmentBookingService.getBookingsByMember(memberAccount);
@@ -37,7 +38,7 @@ router.get('/member/:memberAccount/bookings', async (req, res) => {
 });
 
 // 获取预约详情
-router.get('/booking/:bookingId', async (req, res) => {
+router.get('/booking/:bookingId', authenticate, async (req, res) => {
   try {
     const rawParam = req.params.bookingId;
     const bookingId = parseInt(rawParam, 10);
@@ -47,6 +48,20 @@ router.get('/booking/:bookingId', async (req, res) => {
     const booking = await equipmentBookingService.getBookingById(bookingId);
     if (!booking) {
       return res.status(404).json({ success: false, message: '预约不存在' });
+    }
+
+    // A member may read their own booking, or one shared with them by an accepted
+    // request. Without this, any signed-in member could enumerate every booking.
+    if (req.user.role !== 'admin') {
+      const isOwner = Number(booking.member_account) === req.user.account;
+      let isShared = false;
+      if (!isOwner) {
+        const shared = await equipmentBookingService.isBookingSharedWith(bookingId, req.user.account);
+        isShared = shared;
+      }
+      if (!isOwner && !isShared) {
+        return res.status(403).json({ success: false, message: '无权查看该预约' });
+      }
     }
 
     // 获取分享请求与训练会话（任一项失败也不影响返回预约详情，用空数组兜底）
@@ -77,7 +92,7 @@ router.get('/booking/:bookingId', async (req, res) => {
 });
 
 // 保存预约的训练记录（仅预约所有者；确认计划 或 完成）
-router.post('/booking/:bookingId/training-records', async (req, res) => {
+router.post('/booking/:bookingId/training-records', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const bookingId = parseInt(req.params.bookingId);
     const { records, fullyComplete = true, memberAccount } = req.body;
@@ -99,7 +114,7 @@ router.post('/booking/:bookingId/training-records', async (req, res) => {
 });
 
 // 更新某条训练记录的“完成”勾选（仅预约所有者可改）
-router.patch('/training-records/record/:recordId/completed', async (req, res) => {
+router.patch('/training-records/record/:recordId/completed', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const recordId = parseInt(req.params.recordId);
     const { completed, memberAccount } = req.body;
@@ -114,18 +129,26 @@ router.patch('/training-records/record/:recordId/completed', async (req, res) =>
 });
 
 // 将会话从“确认计划”改为“完成”（彻底固定）
-router.post('/booking/:bookingId/session/:sessionId/complete', async (req, res) => {
+router.post('/booking/:bookingId/session/:sessionId/complete', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
-    await equipmentBookingService.completeSession(sessionId);
+    const memberAccount = req.body.memberAccount || req.query.memberAccount;
+    if (!memberAccount) {
+      return res.status(400).json({ success: false, message: '缺少当前用户信息' });
+    }
+    await equipmentBookingService.completeSession(sessionId, memberAccount);
     res.json({ success: true, message: '已固定为完成' });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    // "not found / already locked" is a 404; every other rejection is an authorization
+    // failure (the service verifies ownership before touching the row).
+    const message = error.message || '';
+    const status = /不存在/.test(message) ? 404 : 403;
+    res.status(status).json({ success: false, message });
   }
 });
 
 // 删除训练计划会话（仅预约所有者可删）
-router.delete('/booking/:bookingId/session/:sessionId', async (req, res) => {
+router.delete('/booking/:bookingId/session/:sessionId', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
     const memberAccount = req.query.memberAccount || req.body.memberAccount;
@@ -140,7 +163,7 @@ router.delete('/booking/:bookingId/session/:sessionId', async (req, res) => {
 });
 
 // 创建预约
-router.post('/booking/create', async (req, res) => {
+router.post('/booking/create', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const { equipmentId, memberAccount, startTime, endTime, locationNote } = req.body;
 
@@ -181,7 +204,7 @@ router.post('/booking/create', async (req, res) => {
 });
 
 // 取消预约
-router.delete('/booking/:bookingId/member/:memberAccount', async (req, res) => {
+router.delete('/booking/:bookingId/member/:memberAccount', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const bookingId = parseInt(req.params.bookingId);
     const memberAccount = parseInt(req.params.memberAccount);
@@ -198,7 +221,7 @@ router.delete('/booking/:bookingId/member/:memberAccount', async (req, res) => {
 });
 
 // 创建分享请求
-router.post('/share-request/create', async (req, res) => {
+router.post('/share-request/create', authenticate, requireSelf(['requesterAccount']), async (req, res) => {
   try {
     const { bookingId, requesterAccount } = req.body;
 
@@ -225,7 +248,7 @@ router.post('/share-request/create', async (req, res) => {
 });
 
 // 获取收到的分享请求
-router.get('/member/:memberAccount/share-requests/received', async (req, res) => {
+router.get('/member/:memberAccount/share-requests/received', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const memberAccount = parseInt(req.params.memberAccount);
     const requests = await equipmentBookingService.getReceivedShareRequests(memberAccount);
@@ -236,7 +259,7 @@ router.get('/member/:memberAccount/share-requests/received', async (req, res) =>
 });
 
 // 获取发送的分享请求
-router.get('/member/:memberAccount/share-requests/sent', async (req, res) => {
+router.get('/member/:memberAccount/share-requests/sent', authenticate, requireSelf(['memberAccount']), async (req, res) => {
   try {
     const requesterAccount = parseInt(req.params.memberAccount);
     const requests = await equipmentBookingService.getSentShareRequests(requesterAccount);
@@ -247,7 +270,7 @@ router.get('/member/:memberAccount/share-requests/sent', async (req, res) => {
 });
 
 // 处理分享请求（接受/拒绝）
-router.post('/share-request/:requestId/handle', async (req, res) => {
+router.post('/share-request/:requestId/handle', authenticate, requireSelf(['bookingOwnerAccount']), async (req, res) => {
   try {
     const requestId = parseInt(req.params.requestId);
     const { bookingOwnerAccount, action } = req.body;
@@ -261,7 +284,10 @@ router.post('/share-request/:requestId/handle', async (req, res) => {
     const message = action === 'accept' ? '已接受分享请求' : '已拒绝分享请求';
     res.json({ success: true, message });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    // These are expected business outcomes (already handled, booking no longer live),
+    // not server faults: report them as a client error so callers can act on them.
+    const userFacing = /已处理|无权限|已失效|已结束/.test(error.message || '');
+    res.status(userFacing ? 409 : 500).json({ success: false, message: error.message });
   }
 });
 

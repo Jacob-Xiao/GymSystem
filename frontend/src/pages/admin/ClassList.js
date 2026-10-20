@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { classAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const ClassList = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const adminAccount = sessionStorage.getItem('adminAccount');
-    if (!adminAccount) {
-      navigate('/admin/login');
-      return;
-    }
-    fetchClasses();
-  }, [navigate]);
+    if (ready) fetchClasses();
+  }, [ready]);
 
   const fetchClasses = async () => {
     try {

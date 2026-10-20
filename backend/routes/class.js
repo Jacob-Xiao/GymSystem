@@ -3,9 +3,10 @@ const router = express.Router();
 const db = require('../config/database');
 const classService = require('../services/classService');
 const classOrderService = require('../services/classOrderService');
+const { authenticate, requireRole } = require('../middleware/auth');
 
 // Get all classes
-router.get('/all', async (req, res) => {
+router.get('/all', authenticate, requireRole('admin', 'member'), async (req, res) => {
   try {
     const classes = await classService.findAll();
     res.json({ success: true, data: classes });
@@ -15,7 +16,7 @@ router.get('/all', async (req, res) => {
 });
 
 // Add class
-router.post('/add', async (req, res) => {
+router.post('/add', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await classService.insert(req.body);
     res.json({ success: true, message: '课程添加成功' });
@@ -25,7 +26,7 @@ router.post('/add', async (req, res) => {
 });
 
 // Update class (must be before /:id route)
-router.put('/update', async (req, res) => {
+router.put('/update', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await classService.update(req.body);
     res.json({ success: true, message: '课程信息更新成功' });
@@ -35,7 +36,7 @@ router.put('/update', async (req, res) => {
 });
 
 // Get class orders (must be before /:id route)
-router.get('/:id/orders', async (req, res) => {
+router.get('/:id/orders', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const orders = await classOrderService.findByClassId(parseInt(req.params.id));
     res.json({ success: true, data: orders });
@@ -45,7 +46,7 @@ router.get('/:id/orders', async (req, res) => {
 });
 
 // Get class by id
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, requireRole('admin', 'member'), async (req, res) => {
   try {
     const classItem = await classService.findById(parseInt(req.params.id));
     if (classItem) {
@@ -59,7 +60,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Delete class
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const classId = parseInt(req.params.id);
 

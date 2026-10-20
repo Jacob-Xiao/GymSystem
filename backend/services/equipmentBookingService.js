@@ -127,11 +127,14 @@ const equipmentBookingService = {
   },
 
   // 取消预约
+  //
+  // Restricted to an active booking so a repeat cancel is not reported as a success and
+  // an already-cancelled row keeps its original cancellation record.
   async cancelBooking(bookingId, memberAccount) {
     const [result] = await db.execute(
-      `UPDATE equipment_booking 
-       SET status = 'cancelled' 
-       WHERE booking_id = ? AND member_account = ?`,
+      `UPDATE equipment_booking
+       SET status = 'cancelled'
+       WHERE booking_id = ? AND member_account = ? AND status = 'active'`,
       [bookingId, memberAccount]
     );
     return result.affectedRows > 0;
@@ -151,6 +154,17 @@ const equipmentBookingService = {
       [equipmentId, now]
     );
     return rows;
+  },
+
+  // 判断某个预约是否已通过“接受分享请求”共享给指定会员
+  async isBookingSharedWith(bookingId, memberAccount) {
+    const [rows] = await db.execute(
+      `SELECT 1 FROM equipment_share_request
+        WHERE booking_id = ? AND requester_account = ? AND status = 'accepted'
+        LIMIT 1`,
+      [bookingId, memberAccount]
+    );
+    return rows.length > 0;
   },
 
   // 创建分享请求
@@ -238,7 +252,8 @@ const equipmentBookingService = {
 
     return db.withTransaction(async (connection) => {
       const [requests] = await connection.execute(
-        `SELECT esr.request_id FROM equipment_share_request esr
+        `SELECT esr.request_id, esr.status AS request_status, eb.status AS booking_status, eb.end_time
+           FROM equipment_share_request esr
          JOIN equipment_booking eb ON esr.booking_id = eb.booking_id
          WHERE esr.request_id = ? AND eb.member_account = ?
          FOR UPDATE`,
@@ -247,6 +262,23 @@ const equipmentBookingService = {
 
       if (requests.length === 0) {
         throw new Error('请求不存在或无权限处理');
+      }
+
+      const request = requests[0];
+
+      // Accepting a share is only meaningful for a live booking. Without this check an
+      // owner could grant access to an expired or cancelled slot, which then shows up in
+      // the requester's active-bookings list.
+      if (request.request_status !== 'pending') {
+        throw new Error('该请求已处理');
+      }
+
+      if (request.booking_status !== 'active') {
+        throw new Error('预约已失效，无法处理分享请求');
+      }
+
+      if (new Date(request.end_time) <= new Date()) {
+        throw new Error('预约已结束，无法处理分享请求');
       }
 
       await connection.execute(
@@ -438,15 +470,47 @@ const equipmentBookingService = {
   },
 
   // 将会话从“确认计划”改为“完成”（彻底固定为不可编辑）
-  async completeSession(sessionId) {
-    const [result] = await db.execute(
-      "UPDATE equipment_training_session SET status = 'completed' WHERE session_id = ? AND status = 'confirmed'",
-      [sessionId]
-    );
-    if (result.affectedRows === 0) {
-      throw new Error('会话不存在或已锁定');
+  //
+  // Only the booking owner may lock a session. The route previously passed no account,
+  // so any caller could permanently freeze another member's training plan.
+  async completeSession(sessionId, memberAccount) {
+    if (memberAccount === undefined || memberAccount === null) {
+      throw new Error('缺少当前用户信息');
     }
-    return true;
+
+    return db.withTransaction(async (connection) => {
+      const [sessions] = await connection.execute(
+        `SELECT s.session_id, s.status, eb.member_account
+           FROM equipment_training_session s
+           INNER JOIN equipment_booking eb ON s.booking_id = eb.booking_id
+          WHERE s.session_id = ?
+          FOR UPDATE`,
+        [sessionId]
+      );
+
+      if (sessions.length === 0) {
+        throw new Error('会话不存在或已锁定');
+      }
+
+      if (parseInt(sessions[0].member_account, 10) !== parseInt(memberAccount, 10)) {
+        throw new Error('仅预约所有者可完成训练计划');
+      }
+
+      if (sessions[0].status !== 'confirmed') {
+        throw new Error('会话不存在或已锁定');
+      }
+
+      const [result] = await connection.execute(
+        "UPDATE equipment_training_session SET status = 'completed' WHERE session_id = ? AND status = 'confirmed'",
+        [sessionId]
+      );
+
+      if (result.affectedRows === 0) {
+        throw new Error('会话不存在或已锁定');
+      }
+
+      return true;
+    });
   },
 
   // 删除训练计划会话（仅预约所有者可操作）

@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { equipmentAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const EquipmentDetail = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('user');
   const { equipmentId, memberAccount } = useParams();
   const [equipment, setEquipment] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchEquipmentDetail();
-  }, [equipmentId]);
-
-  const fetchEquipmentDetail = async () => {
+  const fetchEquipmentDetail = useCallback(async () => {
     try {
       const response = await equipmentAPI.getById(equipmentId);
       if (response.data.success && response.data.data.length > 0) {
@@ -24,7 +21,11 @@ const EquipmentDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [equipmentId]);
+
+  useEffect(() => {
+    if (ready) fetchEquipmentDetail();
+  }, [ready, fetchEquipmentDetail]);
 
   if (loading) {
     return (

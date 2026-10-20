@@ -61,9 +61,17 @@ const classOrderService = {
     return true;
   },
 
-  async deleteById(classOrderId) {
-    await db.execute('DELETE FROM class_order WHERE class_order_id = ?', [classOrderId]);
-    return true;
+  // When `memberAccount` is supplied the delete is scoped to that member's own order,
+  // so an id guessed from another enrolment cannot be removed. Returns whether a row
+  // was actually deleted.
+  async deleteById(classOrderId, memberAccount) {
+    const sql = memberAccount === undefined
+      ? 'DELETE FROM class_order WHERE class_order_id = ?'
+      : 'DELETE FROM class_order WHERE class_order_id = ? AND member_account = ?';
+    const params = memberAccount === undefined ? [classOrderId] : [classOrderId, memberAccount];
+
+    const [result] = await db.execute(sql, params);
+    return result.affectedRows > 0;
   },
 
   async deleteByClassId(classId, executor = db) {

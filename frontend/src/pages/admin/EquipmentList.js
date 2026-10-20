@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { equipmentAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const EquipmentList = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const adminAccount = sessionStorage.getItem('adminAccount');
-    if (!adminAccount) {
-      navigate('/admin/login');
-      return;
-    }
-    fetchEquipment();
-  }, [navigate]);
+    if (ready) fetchEquipment();
+  }, [ready]);
 
   const fetchEquipment = async () => {
     try {

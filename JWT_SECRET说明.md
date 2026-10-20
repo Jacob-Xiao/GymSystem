@@ -1,71 +1,79 @@
-# JWT_SECRET 配置说明
+# JWT 与密码存储说明
 
 ## 当前状态
 
-**重要**: 当前版本的代码**没有使用JWT（JSON Web Token）**进行身份验证。
+系统**已启用 JWT 鉴权**，基于 `jsonwebtoken`；密码使用 `bcryptjs` 哈希存储。
 
-虽然 `package.json` 中包含了 `jsonwebtoken` 依赖，但代码中并未实际使用JWT。目前的身份验证方式是通过 sessionStorage（前端）来管理登录状态。
+> 本文档早前版本声称"当前没有使用 JWT"，该描述已失效。
 
-## 如何配置
+## 鉴权流程
 
-由于代码中未使用JWT，`JWT_SECRET` 环境变量**不是必需的**，但为了保持配置文件的完整性，你可以设置任意字符串值。
+1. `POST /api/login/admin` 或 `POST /api/login/user` 校验账号密码。
+2. 校验通过后返回 `token`，有效期默认 8 小时（可用 `JWT_EXPIRES_IN` 调整）。
+3. 前端把 token 存入 `sessionStorage`，axios 请求拦截器自动附带：
+   ```
+   Authorization: Bearer <token>
+   ```
+4. 所有业务接口经 `middleware/auth.js` 的 `authenticate` 校验；缺失、过期或伪造的 token 返回 `401`。
+5. 前端遇到 `401` 会清空会话，由路由守卫跳回登录页。
 
-### 简单配置（推荐）
+## 权限模型
 
-在 `backend/.env` 文件中，你可以设置一个简单的字符串：
+| 中间件 | 作用 | 失败状态 |
+|---|---|---|
+| `authenticate` | 校验 Bearer token，挂载 `req.user` | 401 |
+| `requireRole('admin')` | 仅管理员可访问 | 403 |
+| `requireRole('admin', 'member')` | 管理员与会员均可读 | 403 |
+| `requireSelf([...字段])` | 账号必须与 token 持有者一致，且角色为 `member` | 403 |
+
+登录接口本身是公开的；其余全部业务路由均已挂载鉴权。
+
+## 配置 JWT_SECRET
+
+在生产环境**必须**设置 `JWT_SECRET`，否则服务拒绝启动：
 
 ```env
-JWT_SECRET=my-gym-management-secret-key-2024
+JWT_SECRET=至少16个字符的随机字符串
 ```
 
-或者：
+生成方式：
 
-```env
-JWT_SECRET=gym-system-secret-12345
-```
-
-### 安全配置（如果将来使用JWT）
-
-如果将来代码中添加了JWT认证功能，建议使用一个随机、复杂的字符串。你可以：
-
-1. **生成随机字符串**（使用Node.js）：
 ```bash
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-2. **使用在线生成器**：
-   - 访问 https://randomkeygen.com/
-   - 选择 "CodeIgniter Encryption Keys" 或 "Symmetric Keys"
+开发环境若未设置，服务会生成一个**进程内随机密钥**并打印警告——重启后旧 token 全部失效，这属于安全方向的失败方式，但仍不建议依赖。
 
-3. **手动创建**：
-   使用至少32个字符的随机字符串，包含字母、数字和特殊字符。
+## 密码存储
 
-## 示例配置
+- 新密码一律经 `bcryptjs` 哈希后写入（默认 cost 10，可用 `BCRYPT_ROUNDS` 调整）。
+- **兼容旧数据**：数据库中既有的明文密码仍可登录，登录成功后会**自动原地升级为 bcrypt 哈希**。密码错误的请求不会改写任何数据。
+- 登录响应与所有查询接口都不会返回密码或哈希值。
 
-以下是一个完整的 `.env` 文件示例：
+### 一次性迁移（可选）
 
-```env
-PORT=3001
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=12345678
-DB_NAME=gym_management_system
-JWT_SECRET=gym-management-system-secret-key-2024-change-in-production
+只想在登录时被动升级也可以接受；若希望立刻清理存量明文，可执行：
+
+```sql
+-- 仅用于盘点：列出仍是明文的记录
+SELECT member_account FROM member WHERE member_password NOT LIKE '$2%';
+SELECT admin_account  FROM admin  WHERE admin_password  NOT LIKE '$2%';
 ```
 
-## 总结
+脚本化迁移需逐个用 `bcrypt.hash` 重写，不要用 SQL 直接替换（SQL 无法生成 bcrypt 哈希）。
 
-- ✅ **当前**: JWT_SECRET 可以设置为任意字符串，不会被使用
-- ⚠️ **建议**: 设置一个简单的字符串即可，如：`my-gym-secret-key-2024`
-- 🔮 **未来**: 如果添加JWT认证，则需要使用安全、随机的密钥
+## 前端存储位置
 
-## 如果将来需要添加JWT认证
+| 键 | 内容 |
+|---|---|
+| `authToken` | JWT |
+| `adminAccount` / `adminStats` | 管理员账号与首页统计 |
+| `member` | 会员档案 JSON |
 
-如果将来要使用JWT进行身份验证，需要：
+均存于 `sessionStorage`，关闭标签页即失效。路由守卫要求 **token 与对应档案同时存在**。
 
-1. 在登录成功后生成JWT token
-2. 客户端存储token并在请求头中发送
-3. 服务器验证token
-4. 此时JWT_SECRET将用于签名和验证token
+> 注意：浏览器端只能做体验层的跳转控制，真正的权限判断全部在后端完成。
 
-但目前不需要担心这个，当前的实现已经可以正常工作。
+## 切换密钥的影响
+
+更换 `JWT_SECRET` 会让所有已签发的 token 立即失效，用户需要重新登录。这是预期行为，可用于强制下线。

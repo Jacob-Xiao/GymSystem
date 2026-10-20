@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
+import useAuthGuard from '../hooks/useAuthGuard';
 
 const AdminMain = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [stats, setStats] = useState({
     memberTotal: 0,
     employeeTotal: 0,
@@ -12,17 +12,13 @@ const AdminMain = () => {
   });
 
   useEffect(() => {
-    const adminAccount = sessionStorage.getItem('adminAccount');
-    if (!adminAccount) {
-      navigate('/admin/login');
-      return;
-    }
+    if (!ready) return;
 
     const savedStats = sessionStorage.getItem('adminStats');
     if (savedStats) {
       setStats(JSON.parse(savedStats));
     }
-  }, [navigate]);
+  }, [ready]);
 
   return (
     <AdminLayout>

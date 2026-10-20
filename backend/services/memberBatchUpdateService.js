@@ -1,81 +1,81 @@
 const db = require('../config/database');
 
+// Build the SET clause from the fields the caller actually supplied. The previous
+// implementation repeated the same four-branch if/else twice (once normally and once
+// again when legacy databases lacked `membership_duration`), which made it easy to let
+// the two copies drift.
+function buildAssignments({ cardNextClass, membershipDuration }) {
+  const assignments = [];
+  const values = [];
+
+  if (cardNextClass !== undefined) {
+    assignments.push('card_next_class = ?');
+    values.push(cardNextClass);
+  }
+
+  if (membershipDuration !== undefined) {
+    assignments.push('membership_duration = ?');
+    values.push(membershipDuration);
+  }
+
+  return { assignments, values };
+}
+
+function isMissingMembershipDuration(error) {
+  return (
+    (error && (error.code === 'ER_BAD_FIELD_ERROR' || error.code === 1054)) &&
+    typeof error.message === 'string' &&
+    error.message.includes('membership_duration')
+  );
+}
+
 const memberBatchUpdateService = {
   // 批量更新会员的课时数和会籍时长
   async batchUpdate(params) {
     const { targetType, targetAccounts, cardNextClass, membershipDuration } = params;
 
-    try {
-      if (targetType === 'all') {
-        // 更新所有会员
-        if (cardNextClass !== undefined && membershipDuration !== undefined) {
-          await db.execute(
-            `UPDATE member SET card_next_class = ?, membership_duration = ?`,
-            [cardNextClass, membershipDuration]
-          );
-        } else if (cardNextClass !== undefined) {
-          await db.execute(
-            `UPDATE member SET card_next_class = ?`,
-            [cardNextClass]
-          );
-        } else if (membershipDuration !== undefined) {
-          await db.execute(
-            `UPDATE member SET membership_duration = ?`,
-            [membershipDuration]
-          );
-        }
-      } else if (targetType === 'specific' && targetAccounts && targetAccounts.length > 0) {
-        // 更新指定会员
-        const placeholders = targetAccounts.map(() => '?').join(',');
-        
-        if (cardNextClass !== undefined && membershipDuration !== undefined) {
-          await db.execute(
-            `UPDATE member SET card_next_class = ?, membership_duration = ? 
-             WHERE member_account IN (${placeholders})`,
-            [cardNextClass, membershipDuration, ...targetAccounts]
-          );
-        } else if (cardNextClass !== undefined) {
-          await db.execute(
-            `UPDATE member SET card_next_class = ? 
-             WHERE member_account IN (${placeholders})`,
-            [cardNextClass, ...targetAccounts]
-          );
-        } else if (membershipDuration !== undefined) {
-          await db.execute(
-            `UPDATE member SET membership_duration = ? 
-             WHERE member_account IN (${placeholders})`,
-            [membershipDuration, ...targetAccounts]
-          );
-        }
-      } else {
+    const { assignments, values } = buildAssignments({ cardNextClass, membershipDuration });
+
+    // Nothing supplied: the route rejects this, but guard the service boundary too.
+    if (assignments.length === 0) {
+      throw new Error('无效的更新参数');
+    }
+
+    let where = '';
+    let whereValues = [];
+
+    if (targetType === 'specific') {
+      if (!Array.isArray(targetAccounts) || targetAccounts.length === 0) {
         throw new Error('无效的更新参数');
       }
-
-      return true;
-    } catch (error) {
-      // 如果字段不存在，尝试不更新该字段
-      if (error.code === 'ER_BAD_FIELD_ERROR' || error.code === 1054) {
-        if (error.message && error.message.includes('membership_duration')) {
-          // membership_duration字段不存在，只更新card_next_class
-          if (targetType === 'all') {
-            if (cardNextClass !== undefined) {
-              await db.execute(`UPDATE member SET card_next_class = ?`, [cardNextClass]);
-            }
-          } else if (targetType === 'specific' && targetAccounts && targetAccounts.length > 0) {
-            const placeholders = targetAccounts.map(() => '?').join(',');
-            if (cardNextClass !== undefined) {
-              await db.execute(
-                `UPDATE member SET card_next_class = ? WHERE member_account IN (${placeholders})`,
-                [cardNextClass, ...targetAccounts]
-              );
-            }
-          }
-          return true;
-        }
-      }
-      throw error;
+      where = ` WHERE member_account IN (${targetAccounts.map(() => '?').join(',')})`;
+      whereValues = targetAccounts;
+    } else if (targetType !== 'all') {
+      throw new Error('无效的更新参数');
     }
+
+    try {
+      await db.execute(
+        `UPDATE member SET ${assignments.join(', ')}${where}`,
+        [...values, ...whereValues]
+      );
+    } catch (error) {
+      // Legacy database without the membership_duration column: apply what it can
+      // support instead of failing the whole request. Any other error is real.
+      if (!isMissingMembershipDuration(error)) throw error;
+
+      const fallback = buildAssignments({ cardNextClass, membershipDuration: undefined });
+      if (fallback.assignments.length === 0) return true;
+
+      await db.execute(
+        `UPDATE member SET ${fallback.assignments.join(', ')}${where}`,
+        [...fallback.values, ...whereValues]
+      );
+    }
+
+    return true;
   }
 };
 
 module.exports = memberBatchUpdateService;
+module.exports.buildAssignments = buildAssignments;
