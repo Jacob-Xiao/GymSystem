@@ -22,13 +22,13 @@ function loadDateUtils() {
   const sandbox = { module: { exports: {} }, Date, Math, Number, String };
   vm.createContext(sandbox);
   vm.runInContext(
-    `${body}\nmodule.exports = { formatDate, membershipRemaining };`,
+    `${body}\nmodule.exports = { formatDate, formatDateTime, membershipRemaining };`,
     sandbox
   );
   return sandbox.module.exports;
 }
 
-const { formatDate, membershipRemaining } = loadDateUtils();
+const { formatDate, formatDateTime, membershipRemaining } = loadDateUtils();
 
 test('formatDate renders DATE columns as calendar days, not ISO timestamps', () => {
   assert.equal(formatDate('2020-06-05T04:00:00.000Z'), '2020/6/5');
@@ -39,6 +39,19 @@ test('formatDate degrades gracefully for missing or invalid values', () => {
   assert.equal(formatDate(null), '-');
   assert.equal(formatDate(''), '-');
   assert.equal(formatDate('not-a-date'), 'not-a-date');
+});
+
+test('formatDateTime keeps the time component for real moments', () => {
+  const formatted = formatDateTime('2030-01-01T10:30:00.000Z');
+  assert.match(formatted, /2030/);
+  assert.match(formatted, /\d{2}:\d{2}/, 'datetime output must include a time');
+  assert.equal(formatted.includes('T'), false, 'must not leak the ISO separator');
+});
+
+test('formatDateTime degrades gracefully for missing or invalid values', () => {
+  assert.equal(formatDateTime(null), '-');
+  assert.equal(formatDateTime(''), '-');
+  assert.equal(formatDateTime('not-a-date'), 'not-a-date');
 });
 
 test('membershipRemaining reports an unset membership', () => {

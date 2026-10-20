@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# AX Code wiki cache (generated locally, not source)
+.ax-wiki/

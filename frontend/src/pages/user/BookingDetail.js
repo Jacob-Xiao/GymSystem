@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
+import { formatDateTime } from '../../utils/date';
 import UserLayout from '../../components/UserLayout';
 import { equipmentBookingAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
@@ -137,17 +138,6 @@ const BookingDetail = () => {
     } catch (error) {
       setMessage(error.response?.data?.message || '更新失败');
     }
-  };
-
-  const formatDateTime = (dateTimeString) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   const isOwner = booking && parseInt(booking.member_account) === parseInt(memberAccount);

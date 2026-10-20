@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { formatDateTime } from '../../utils/date';
 import UserLayout from '../../components/UserLayout';
 import { notificationAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
@@ -26,17 +27,6 @@ const UserNotifications = () => {
   useEffect(() => {
     if (ready) fetchNotifications();
   }, [ready, fetchNotifications]);
-
-  const formatDateTime = (dateTimeString) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   if (loading) {
     return (

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import UserLayout from '../components/UserLayout';
 import { equipmentBookingAPI } from '../services/api';
-import { formatDate, membershipRemaining } from '../utils/date';
+import { formatDate, formatDateTime, membershipRemaining } from '../utils/date';
 
 const UserMain = () => {
   const navigate = useNavigate();
@@ -42,17 +42,6 @@ const UserMain = () => {
     } finally {
       setBookingsLoading(false);
     }
-  };
-
-  const formatDateTime = (dateTimeString) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   if (!member) {
