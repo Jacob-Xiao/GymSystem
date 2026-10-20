@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { employeeAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
+import { formatDate } from '../../utils/date';
 
 const EmployeeList = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const adminAccount = sessionStorage.getItem('adminAccount');
-    if (!adminAccount) {
-      navigate('/admin/login');
-      return;
-    }
-    fetchEmployees();
-  }, [navigate]);
+    if (ready) fetchEmployees();
+  }, [ready]);
 
   const fetchEmployees = async () => {
     try {
@@ -95,7 +92,7 @@ const EmployeeList = () => {
                       <td>{employee.employee_name}</td>
                       <td>{employee.employee_gender}</td>
                       <td>{employee.employee_age}</td>
-                      <td>{employee.entry_time}</td>
+                      <td>{formatDate(employee.entry_time)}</td>
                       <td>{employee.staff}</td>
                       <td>{employee.employee_message}</td>
                       <td>

@@ -117,10 +117,18 @@ router.patch('/training-records/record/:recordId/completed', async (req, res) =>
 router.post('/booking/:bookingId/session/:sessionId/complete', async (req, res) => {
   try {
     const sessionId = parseInt(req.params.sessionId);
-    await equipmentBookingService.completeSession(sessionId);
+    const memberAccount = req.body.memberAccount || req.query.memberAccount;
+    if (!memberAccount) {
+      return res.status(400).json({ success: false, message: '缺少当前用户信息' });
+    }
+    await equipmentBookingService.completeSession(sessionId, memberAccount);
     res.json({ success: true, message: '已固定为完成' });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    // "not found / already locked" is a 404; every other rejection is an authorization
+    // failure (the service verifies ownership before touching the row).
+    const message = error.message || '';
+    const status = /不存在/.test(message) ? 404 : 403;
+    res.status(status).json({ success: false, message });
   }
 });
 
@@ -261,7 +269,10 @@ router.post('/share-request/:requestId/handle', async (req, res) => {
     const message = action === 'accept' ? '已接受分享请求' : '已拒绝分享请求';
     res.json({ success: true, message });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    // These are expected business outcomes (already handled, booking no longer live),
+    // not server faults: report them as a client error so callers can act on them.
+    const userFacing = /已处理|无权限|已失效|已结束/.test(error.message || '');
+    res.status(userFacing ? 409 : 500).json({ success: false, message: error.message });
   }
 });
 

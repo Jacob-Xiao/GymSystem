@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import UserLayout from '../components/UserLayout';
 import { equipmentBookingAPI } from '../services/api';
+import { formatDate, membershipRemaining } from '../utils/date';
 
 const UserMain = () => {
   const navigate = useNavigate();
@@ -123,26 +124,15 @@ const UserMain = () => {
                 会籍信息
               </div>
               <div className="card-body">
-                <p><strong>办卡时间：</strong>{member.cardTime}</p>
+                <p><strong>办卡时间：</strong>{formatDate(member.cardTime)}</p>
                 <p><strong>购买课时：</strong>{member.cardClass}</p>
                 <p><strong>剩余课时：</strong>{member.cardNextClass}</p>
                 <p><strong>会籍剩余时长：</strong>{
                   (() => {
-                    if (!member.cardTime || !member.membershipDuration) {
-                      return '未设置';
-                    }
-                    const cardDate = new Date(member.cardTime);
-                    const now = new Date();
-                    const monthsDiff = (now.getFullYear() - cardDate.getFullYear()) * 12 + (now.getMonth() - cardDate.getMonth());
-                    const remainingMonths = member.membershipDuration - monthsDiff;
-                    if (remainingMonths <= 0) {
-                      return <span className="text-danger">已过期</span>;
-                    } else if (remainingMonths < 1) {
-                      const daysRemaining = Math.ceil((new Date(cardDate.getFullYear(), cardDate.getMonth() + member.membershipDuration, cardDate.getDate()) - now) / (1000 * 60 * 60 * 24));
-                      return `${daysRemaining}天`;
-                    } else {
-                      return `${remainingMonths}个月`;
-                    }
+                    const remaining = membershipRemaining(member.cardTime, member.membershipDuration);
+                    return remaining.expired
+                      ? <span className="text-danger">{remaining.text}</span>
+                      : remaining.text;
                   })()
                 }</p>
                 <div className="mt-3">

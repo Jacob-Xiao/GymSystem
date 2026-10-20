@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { memberAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const SearchMember = () => {
+  const ready = useAuthGuard('admin');
   const [account, setAccount] = useState('');
   const [members, setMembers] = useState([]);
   const [error, setError] = useState('');
@@ -33,6 +35,10 @@ const SearchMember = () => {
       setError(error.response?.data?.message || '查询失败');
     }
   };
+
+  if (!ready) {
+    return <div className="text-center mt-5">加载中...</div>;
+  }
 
   return (
     <AdminLayout>

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { equipmentBookingAPI, notificationAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const ShareRequests = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('user');
   const { account } = useParams();
   const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'notifications'
   const [requests, setRequests] = useState([]);
@@ -12,12 +13,7 @@ const ShareRequests = () => {
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchShareRequests();
-    fetchNotifications();
-  }, [account]);
-
-  const fetchShareRequests = async () => {
+  const fetchShareRequests = useCallback(async () => {
     try {
       const response = await equipmentBookingAPI.getReceivedShareRequests(account);
       if (response.data.success) {
@@ -28,9 +24,9 @@ const ShareRequests = () => {
     } finally {
       setRequestsLoading(false);
     }
-  };
+  }, [account]);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const response = await notificationAPI.getByMemberAccount(account);
       if (response.data.success) {
@@ -41,7 +37,13 @@ const ShareRequests = () => {
     } finally {
       setNotificationsLoading(false);
     }
-  };
+  }, [account]);
+
+  useEffect(() => {
+    if (!ready) return;
+    fetchShareRequests();
+    fetchNotifications();
+  }, [ready, fetchShareRequests, fetchNotifications]);
 
   const handleRequest = async (requestId, action) => {
     try {

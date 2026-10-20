@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { clearAdminSession } from '../utils/session';
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    sessionStorage.removeItem('adminAccount');
-    sessionStorage.removeItem('adminStats');
+    clearAdminSession();
     navigate('/admin/login');
   };
 
@@ -17,33 +17,31 @@ const AdminLayout = ({ children }) => {
           健身房管理系统
         </Link>
         <button
+          type="button"
           className="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0"
           id="sidebarToggle"
-          href="#!"
-          onClick={(e) => {
-            e.preventDefault();
-            document.body.classList.toggle('sb-sidenav-toggled');
-          }}
+          aria-label="切换侧边栏"
+          onClick={() => document.body.classList.toggle('sb-sidenav-toggled')}
         >
           <i className="bi bi-list"></i>
         </button>
         <ul className="navbar-nav ms-auto me-3 me-lg-4">
           <li className="nav-item dropdown">
-            <a
-              className="nav-link dropdown-toggle"
+            <button
+              type="button"
+              className="nav-link dropdown-toggle btn btn-link"
               id="navbarDropdown"
-              href="#"
-              role="button"
               data-bs-toggle="dropdown"
               aria-expanded="false"
+              aria-label="账户菜单"
             >
               <i className="bi bi-person-fill"></i>
-            </a>
+            </button>
             <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
               <li>
-                <a className="dropdown-item" href="#!" onClick={handleLogout}>
+                <button type="button" className="dropdown-item" onClick={handleLogout}>
                   退出登录
-                </a>
+                </button>
               </li>
             </ul>
           </li>

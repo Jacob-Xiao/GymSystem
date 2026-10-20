@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { equipmentAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const AddEquipment = () => {
   const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [formData, setFormData] = useState({
     equipmentName: '',
     equipmentLocation: '',
@@ -50,6 +52,10 @@ const AddEquipment = () => {
       setError(error.response?.data?.message || '添加失败');
     }
   };
+
+  if (!ready) {
+    return <div className="text-center mt-5">加载中...</div>;
+  }
 
   return (
     <AdminLayout>

@@ -7,7 +7,7 @@ const classOrderService = require('../services/classOrderService');
 // Get user info
 router.get('/info/:account', async (req, res) => {
   try {
-    const member = await memberService.findByAccount(parseInt(req.params.account));
+    const member = await memberService.findProfileByAccount(parseInt(req.params.account));
     if (member) {
       res.json({ success: true, data: member });
     } else {

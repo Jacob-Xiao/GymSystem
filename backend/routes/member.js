@@ -26,9 +26,12 @@ router.get('/all', async (req, res) => {
 });
 
 // Get member by account
+//
+// Uses the client-safe projection: the admin edit form needs the photo, but the
+// password must never be serialized into a response.
 router.get('/:account', async (req, res) => {
   try {
-    const member = await memberService.findByAccount(parseInt(req.params.account));
+    const member = await memberService.findProfileByAccount(parseInt(req.params.account));
     if (member) {
       res.json({ success: true, data: [member] });
     } else {

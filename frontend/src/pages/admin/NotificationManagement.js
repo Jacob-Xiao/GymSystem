@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { notificationAPI, memberAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const NotificationManagement = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [activeTab, setActiveTab] = useState('notification'); // 'notification' or 'update'
   const [members, setMembers] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -27,13 +28,8 @@ const NotificationManagement = () => {
   });
 
   useEffect(() => {
-    const adminAccount = sessionStorage.getItem('adminAccount');
-    if (!adminAccount) {
-      navigate('/admin/login');
-      return;
-    }
-    fetchData();
-  }, [navigate]);
+    if (ready) fetchData();
+  }, [ready]);
 
   const fetchData = async () => {
     try {

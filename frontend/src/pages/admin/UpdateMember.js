@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { memberAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const UpdateMember = () => {
   const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const { account } = useParams();
   const [formData, setFormData] = useState({
     memberAccount: account,
@@ -19,11 +21,7 @@ const UpdateMember = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchMember();
-  }, [account]);
-
-  const fetchMember = async () => {
+  const fetchMember = useCallback(async () => {
     try {
       const response = await memberAPI.getByAccount(account);
       if (response.data.success && response.data.data.length > 0) {
@@ -44,7 +42,11 @@ const UpdateMember = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [account]);
+
+  useEffect(() => {
+    if (ready) fetchMember();
+  }, [ready, fetchMember]);
 
   const handleChange = (e) => {
     setFormData({

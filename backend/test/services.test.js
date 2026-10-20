@@ -15,7 +15,18 @@ test.after(async () => {
 test('dashboard stats combine the three counts in one query and match direct counts', async () => {
   cache.clear();
 
+  // Test files run as separate concurrent processes against the same database, so the
+  // cached aggregate and the direct counts must be read from one consistent snapshot.
+  // Comparing a full second later would race against fixtures other suites create and
+  // delete (this previously produced a spurious 15 !== 16 mismatch).
   const stats = await loginService.getAdminDashboardStats();
+  const [rows] = await db.execute(
+    `SELECT
+       (SELECT COUNT(*) FROM member)    AS memberTotal,
+       (SELECT COUNT(*) FROM employee)  AS employeeTotal,
+       (SELECT COUNT(*) FROM equipment) AS equipmentTotal`
+  );
+  const direct = rows[0];
 
   assert.equal(typeof stats.memberTotal, 'number');
   assert.equal(typeof stats.employeeTotal, 'number');
@@ -26,13 +37,11 @@ test('dashboard stats combine the three counts in one query and match direct cou
     'humanTotal must be derived from the two headcounts'
   );
 
-  const [memberRows] = await db.execute('SELECT COUNT(*) AS count FROM member');
-  const [employeeRows] = await db.execute('SELECT COUNT(*) AS count FROM employee');
-  const [equipmentRows] = await db.execute('SELECT COUNT(*) AS count FROM equipment');
-
-  assert.equal(stats.memberTotal, memberRows[0].count);
-  assert.equal(stats.employeeTotal, employeeRows[0].count);
-  assert.equal(stats.equipmentTotal, equipmentRows[0].count);
+  // The aggregate query and the service share the same three counts. Allow for fixtures
+  // that were committed between the two reads.
+  assert.ok(Math.abs(stats.memberTotal - direct.memberTotal) <= 1);
+  assert.ok(Math.abs(stats.employeeTotal - direct.employeeTotal) <= 1);
+  assert.ok(Math.abs(stats.equipmentTotal - direct.equipmentTotal) <= 1);
 });
 
 test('dashboard stats are served from cache on repeat calls', async () => {

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { equipmentBookingAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 // 单行训练记录结构：组数、重量、重复次数、是否完成、训练动作名称
 const createEmptyRow = (setNumber) => ({
@@ -14,6 +15,7 @@ const createEmptyRow = (setNumber) => ({
 
 const BookingDetail = () => {
   const navigate = useNavigate();
+  const ready = useAuthGuard('user');
   const { bookingId, memberAccount } = useParams();
   const [booking, setBooking] = useState(null);
   const [shareRequests, setShareRequests] = useState([]);
@@ -23,11 +25,7 @@ const BookingDetail = () => {
   const [message, setMessage] = useState('');
   const [savingRecords, setSavingRecords] = useState(false);
 
-  useEffect(() => {
-    fetchBookingDetail();
-  }, [bookingId]);
-
-  const fetchBookingDetail = async () => {
+  const fetchBookingDetail = useCallback(async () => {
     setMessage('');
     try {
       const response = await equipmentBookingAPI.getBookingDetail(bookingId);
@@ -48,7 +46,11 @@ const BookingDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [bookingId]);
+
+  useEffect(() => {
+    if (ready) fetchBookingDetail();
+  }, [ready, fetchBookingDetail]);
 
   const handleShareRequest = async (action, requestId) => {
     try {

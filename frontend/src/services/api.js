@@ -81,8 +81,10 @@ export const equipmentBookingAPI = {
       completed,
       memberAccount
     }),
-  completeSession: (bookingId, sessionId) =>
-    api.post(`/equipment-booking/booking/${bookingId}/session/${sessionId}/complete`),
+  completeSession: (bookingId, sessionId, memberAccount) =>
+    api.post(`/equipment-booking/booking/${bookingId}/session/${sessionId}/complete`, {
+      memberAccount
+    }),
   deleteTrainingSession: (bookingId, sessionId, memberAccount) =>
     api.delete(
       `/equipment-booking/booking/${bookingId}/session/${sessionId}?memberAccount=${memberAccount}`

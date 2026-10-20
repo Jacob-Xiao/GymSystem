@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { userAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const UserClass = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('user');
   const { account } = useParams();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchClasses();
-  }, [account]);
-
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     try {
       const response = await userAPI.getClasses(account);
       if (response.data.success) {
@@ -24,7 +21,11 @@ const UserClass = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [account]);
+
+  useEffect(() => {
+    if (ready) fetchClasses();
+  }, [ready, fetchClasses]);
 
   const handleCancel = async (orderId) => {
     if (window.confirm('确定要退课吗？')) {

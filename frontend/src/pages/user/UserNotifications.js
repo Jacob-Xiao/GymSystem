@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { notificationAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const UserNotifications = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('user');
   const { account } = useParams();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [account]);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const response = await notificationAPI.getByMemberAccount(account);
       if (response.data.success) {
@@ -24,7 +21,11 @@ const UserNotifications = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [account]);
+
+  useEffect(() => {
+    if (ready) fetchNotifications();
+  }, [ready, fetchNotifications]);
 
   const formatDateTime = (dateTimeString) => {
     const date = new Date(dateTimeString);

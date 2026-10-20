@@ -1,19 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { userAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
+import { formatDate } from '../../utils/date';
 
 const UserInfo = () => {
-  const navigate = useNavigate();
+  const ready = useAuthGuard('user');
   const { account } = useParams();
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchMember();
-  }, [account]);
-
-  const fetchMember = async () => {
+  const fetchMember = useCallback(async () => {
     try {
       const response = await userAPI.getInfo(account);
       if (response.data.success) {
@@ -24,7 +22,11 @@ const UserInfo = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [account]);
+
+  useEffect(() => {
+    if (ready) fetchMember();
+  }, [ready, fetchMember]);
 
   if (loading) {
     return (
@@ -114,7 +116,7 @@ const UserInfo = () => {
             </div>
             <div className="row mb-3">
               <div className="col-md-6">
-                <strong>办卡时间：</strong>{member.card_time}
+                <strong>办卡时间：</strong>{formatDate(member.card_time)}
               </div>
               <div className="col-md-6">
                 <strong>购买课时：</strong>{member.card_class}

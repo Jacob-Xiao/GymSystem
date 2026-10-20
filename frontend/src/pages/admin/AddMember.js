@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { memberAPI } from '../../services/api';
+import useAuthGuard from '../../hooks/useAuthGuard';
 
 const AddMember = () => {
   const navigate = useNavigate();
+  const ready = useAuthGuard('admin');
   const [formData, setFormData] = useState({
     memberName: '',
     memberGender: '',
@@ -55,6 +57,10 @@ const AddMember = () => {
       setError(error.response?.data?.message || '添加失败');
     }
   };
+
+  if (!ready) {
+    return <div className="text-center mt-5">加载中...</div>;
+  }
 
   return (
     <AdminLayout>
