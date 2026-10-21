@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { memberAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const SearchMember = () => {
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [account, setAccount] = useState('');
   const [members, setMembers] = useState([]);
   const [error, setError] = useState('');
@@ -16,7 +18,7 @@ const SearchMember = () => {
     setMembers([]);
 
     if (!account) {
-      setError('请输入会员卡号');
+      setError(t('member.search.placeholder'));
       return;
     }
 
@@ -26,57 +28,57 @@ const SearchMember = () => {
         if (response.data.data.length > 0) {
           setMembers(response.data.data);
         } else {
-          setError(response.data.message || '会员卡号不存在！');
+          setError(response.data.message || t('member.search.notFound'));
         }
       } else {
-        setError(response.data.message || '查询失败');
+        setError(response.data.message || t('server.genericError'));
       }
     } catch (error) {
-      setError(error.response?.data?.message || '查询失败');
+      setError(error.response?.data?.message || t('server.genericError'));
     }
   };
 
   if (!ready) {
-    return <div className="text-center mt-5">加载中...</div>;
+    return <div className="text-center mt-5">{t('common.loading')}</div>;
   }
 
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">查询会员</h1>
+        <h1 className="mt-4">{t('member.search.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to="/admin/members">会员管理</Link>
+            <Link to="/admin/members">{t('admin.nav.members')}</Link>
           </li>
-          <li className="breadcrumb-item active">查询会员</li>
+          <li className="breadcrumb-item active">{t('member.search.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-search me-1"></i>
-            根据会员卡号查询
+            {t('member.search.cardTitle')}
           </div>
           <div className="card-body">
             <form onSubmit={handleSearch}>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">会员卡号</label>
+                  <label className="form-label">{t('member.search.label')}</label>
                   <input
                     type="text"
                     className="form-control"
                     value={account}
                     onChange={(e) => setAccount(e.target.value)}
-                    placeholder="请输入会员卡号"
+                    placeholder={t('member.search.placeholder')}
                   />
                 </div>
               </div>
               <button type="submit" className="btn btn-primary">
-                查询
+                {t('common.search')}
               </button>
               <Link to="/admin/members" className="btn btn-secondary ms-2">
-                返回
+                {t('common.back')}
               </Link>
             </form>
             {error && (
@@ -89,16 +91,16 @@ const SearchMember = () => {
                 <table className="table table-bordered">
                   <thead>
                     <tr>
-                      <th>会员账号</th>
-                      <th>姓名</th>
-                      <th>性别</th>
-                      <th>年龄</th>
-                      <th>身高(cm)</th>
-                      <th>体重(kg)</th>
-                      <th>电话</th>
-                      <th>办卡时间</th>
-                      <th>购买课时</th>
-                      <th>剩余课时</th>
+                      <th>{t('member.field.account')}</th>
+                      <th>{t('member.field.name')}</th>
+                      <th>{t('member.field.gender')}</th>
+                      <th>{t('member.field.age')}</th>
+                      <th>{t('member.field.height')}</th>
+                      <th>{t('member.field.weight')}</th>
+                      <th>{t('member.field.phone')}</th>
+                      <th>{t('member.field.cardTime')}</th>
+                      <th>{t('member.field.cardClass')}</th>
+                      <th>{t('member.field.cardNextClass')}</th>
                     </tr>
                   </thead>
                   <tbody>

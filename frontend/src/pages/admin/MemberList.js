@@ -3,10 +3,20 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { memberAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 import { formatDate, membershipRemaining } from '../../utils/date';
 
 const MemberList = () => {
   const ready = useAuthGuard('admin');
+  const { t, language } = useI18n();
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US';
+  // Copy passed to the formatter so the helper itself stays language-agnostic.
+  const remainingLabels = {
+    notSet: t('common.notSet'),
+    expired: t('common.expired'),
+    days: (count) => t('common.daysLeft', { count }),
+    months: (count) => t('common.monthsLeft', { count })
+  };
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,12 +38,12 @@ const MemberList = () => {
   };
 
   const handleDelete = async (account) => {
-    if (window.confirm('确定要删除该会员吗？')) {
+    if (window.confirm(t('member.delete.confirm'))) {
       try {
         await memberAPI.delete(account);
         fetchMembers();
       } catch (error) {
-        alert('删除失败：' + (error.response?.data?.message || error.message));
+        alert(t('member.delete.failed') + (error.response?.data?.message || error.message));
       }
     }
   };
@@ -42,7 +52,7 @@ const MemberList = () => {
     return (
       <AdminLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </AdminLayout>
     );
@@ -51,26 +61,26 @@ const MemberList = () => {
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">会员管理</h1>
+        <h1 className="mt-4">{t('member.list.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">会员管理</li>
+          <li className="breadcrumb-item active">{t('member.list.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <div className="d-flex justify-content-between align-items-center">
               <div>
                 <i className="bi bi-table me-1"></i>
-                会员列表
+                {t('member.list.cardTitle')}
               </div>
               <div>
                 <Link to="/admin/members/add" className="btn btn-primary btn-sm me-2">
-                  添加会员
+                  {t('member.action.add')}
                 </Link>
                 <Link to="/admin/members/search" className="btn btn-secondary btn-sm">
-                  查询会员
+                  {t('member.action.search')}
                 </Link>
               </div>
             </div>
@@ -80,18 +90,18 @@ const MemberList = () => {
               <table className="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>会员账号</th>
-                    <th>姓名</th>
-                    <th>性别</th>
-                    <th>年龄</th>
-                    <th>身高(cm)</th>
-                    <th>体重(kg)</th>
-                    <th>电话</th>
-                    <th>办卡时间</th>
-                    <th>购买课时</th>
-                    <th>剩余课时</th>
-                    <th>会籍剩余时长</th>
-                    <th>操作</th>
+                    <th>{t('member.field.account')}</th>
+                    <th>{t('member.field.name')}</th>
+                    <th>{t('member.field.gender')}</th>
+                    <th>{t('member.field.age')}</th>
+                    <th>{t('member.field.height')}</th>
+                    <th>{t('member.field.weight')}</th>
+                    <th>{t('member.field.phone')}</th>
+                    <th>{t('member.field.cardTime')}</th>
+                    <th>{t('member.field.cardClass')}</th>
+                    <th>{t('member.field.cardNextClass')}</th>
+                    <th>{t('member.field.remaining')}</th>
+                    <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -104,14 +114,15 @@ const MemberList = () => {
                       <td>{member.member_height}</td>
                       <td>{member.member_weight}</td>
                       <td>{member.member_phone}</td>
-                      <td>{formatDate(member.card_time)}</td>
+                      <td>{formatDate(member.card_time, locale)}</td>
                       <td>{member.card_class}</td>
                       <td>{member.card_next_class}</td>
                       <td>
                         {(() => {
                           const remaining = membershipRemaining(
                             member.card_time,
-                            member.membership_duration
+                            member.membership_duration,
+                            remainingLabels
                           );
                           return remaining.expired ? (
                             <span className="text-danger">{remaining.text}</span>
@@ -125,13 +136,13 @@ const MemberList = () => {
                           to={`/admin/members/update/${member.member_account}`}
                           className="btn btn-sm btn-warning me-1"
                         >
-                          修改
+                          {t('common.edit')}
                         </Link>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => handleDelete(member.member_account)}
                         >
-                          删除
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>

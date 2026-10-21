@@ -3,10 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { memberAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const AddMember = () => {
   const navigate = useNavigate();
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     memberName: '',
     memberGender: '',
@@ -32,7 +34,7 @@ const AddMember = () => {
 
     // Validation
     if (!formData.memberName || !formData.memberGender || !formData.cardClass) {
-      setError('请填写所有必填项');
+      setError(t('member.required'));
       return;
     }
 
@@ -51,34 +53,34 @@ const AddMember = () => {
       if (response.data.success) {
         navigate('/admin/members');
       } else {
-        setError(response.data.message || '添加失败');
+        setError(response.data.message || t('member.add.failed'));
       }
     } catch (error) {
-      setError(error.response?.data?.message || '添加失败');
+      setError(error.response?.data?.message || t('member.add.failed'));
     }
   };
 
   if (!ready) {
-    return <div className="text-center mt-5">加载中...</div>;
+    return <div className="text-center mt-5">{t('common.loading')}</div>;
   }
 
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">添加会员</h1>
+        <h1 className="mt-4">{t('member.add.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to="/admin/members">会员管理</Link>
+            <Link to="/admin/members">{t('admin.nav.members')}</Link>
           </li>
-          <li className="breadcrumb-item active">添加会员</li>
+          <li className="breadcrumb-item active">{t('member.add.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-person-plus me-1"></i>
-            添加会员信息
+            {t('member.add.cardTitle')}
           </div>
           <div className="card-body">
             {error && (
@@ -89,7 +91,7 @@ const AddMember = () => {
             <form onSubmit={handleSubmit}>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">姓名 *</label>
+                  <label className="form-label">{t('member.field.name')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -100,7 +102,7 @@ const AddMember = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">性别 *</label>
+                  <label className="form-label">{t('member.field.gender')}</label>
                   <select
                     className="form-control"
                     name="memberGender"
@@ -108,15 +110,15 @@ const AddMember = () => {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">请选择</option>
-                    <option value="男">男</option>
-                    <option value="女">女</option>
+                    <option value="">{t('common.selectPlaceholder')}</option>
+                    <option value={t('common.male')}>{t('common.male')}</option>
+                    <option value={t('common.female')}>{t('common.female')}</option>
                   </select>
                 </div>
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">年龄</label>
+                  <label className="form-label">{t('member.field.age')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -126,7 +128,7 @@ const AddMember = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">电话</label>
+                  <label className="form-label">{t('member.field.phone')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -138,7 +140,7 @@ const AddMember = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">身高(cm)</label>
+                  <label className="form-label">{t('member.field.height')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -148,7 +150,7 @@ const AddMember = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">体重(kg)</label>
+                  <label className="form-label">{t('member.field.weight')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -160,7 +162,7 @@ const AddMember = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">购买课时 *</label>
+                  <label className="form-label">{t('member.field.cardClass')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -171,7 +173,7 @@ const AddMember = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">会籍时长（月）</label>
+                  <label className="form-label">{t('member.field.membershipDuration')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -179,16 +181,16 @@ const AddMember = () => {
                     value={formData.membershipDuration}
                     onChange={handleChange}
                     min="0"
-                    placeholder="请输入会籍时长（月）"
+                    placeholder={t('member.field.membershipDuration')}
                   />
                 </div>
               </div>
               <div className="mt-4 mb-0">
                 <button type="submit" className="btn btn-primary">
-                  添加
+                  {t('common.add')}
                 </button>
                 <Link to="/admin/members" className="btn btn-secondary ms-2">
-                  取消
+                  {t('common.cancel')}
                 </Link>
               </div>
             </form>

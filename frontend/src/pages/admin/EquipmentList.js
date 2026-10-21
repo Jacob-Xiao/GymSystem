@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { equipmentAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const EquipmentList = () => {
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,12 +29,12 @@ const EquipmentList = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('确定要删除该设备吗？')) {
+    if (window.confirm(t('equipment.delete.confirm'))) {
       try {
         await equipmentAPI.delete(id);
         fetchEquipment();
       } catch (error) {
-        alert('删除失败：' + (error.response?.data?.message || error.message));
+        alert(t('equipment.delete.failed') + (error.response?.data?.message || error.message));
       }
     }
   };
@@ -41,7 +43,7 @@ const EquipmentList = () => {
     return (
       <AdminLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </AdminLayout>
     );
@@ -50,22 +52,22 @@ const EquipmentList = () => {
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">器材管理</h1>
+        <h1 className="mt-4">{t('equipment.list.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">器材管理</li>
+          <li className="breadcrumb-item active">{t('equipment.list.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <div className="d-flex justify-content-between align-items-center">
               <div>
                 <i className="bi bi-table me-1"></i>
-                器材列表
+                {t('equipment.list.cardTitle')}
               </div>
               <Link to="/admin/equipment/add" className="btn btn-primary btn-sm">
-                添加器材
+                {t('equipment.action.add')}
               </Link>
             </div>
           </div>
@@ -74,12 +76,12 @@ const EquipmentList = () => {
               <table className="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>器材ID</th>
-                    <th>器材名称</th>
-                    <th>器材位置</th>
-                    <th>器材状态</th>
-                    <th>备注信息</th>
-                    <th>操作</th>
+                    <th>{t('equipment.field.id')}</th>
+                    <th>{t('equipment.field.name')}</th>
+                    <th>{t('equipment.field.location')}</th>
+                    <th>{t('equipment.field.status')}</th>
+                    <th>{t('equipment.field.message')}</th>
+                    <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -95,13 +97,13 @@ const EquipmentList = () => {
                           to={`/admin/equipment/update/${item.equipment_id}`}
                           className="btn btn-sm btn-warning me-1"
                         >
-                          修改
+                          {t('common.edit')}
                         </Link>
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => handleDelete(item.equipment_id)}
                         >
-                          删除
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>

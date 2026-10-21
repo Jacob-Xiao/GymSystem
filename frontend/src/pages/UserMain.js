@@ -1,16 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import UserLayout from '../components/UserLayout';
+import useAuthGuard from '../hooks/useAuthGuard';
+import { useI18n } from '../i18n';
 import { equipmentBookingAPI } from '../services/api';
 import { formatDate, formatDateTime, membershipRemaining } from '../utils/date';
 
 const UserMain = () => {
   const navigate = useNavigate();
+  const ready = useAuthGuard('user');
+  const { t, language } = useI18n();
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US';
+  const remainingLabels = {
+    notSet: t('common.notSet'),
+    expired: t('common.expired'),
+    days: (count) => t('common.daysLeft', { count }),
+    months: (count) => t('common.monthsLeft', { count })
+  };
   const [member, setMember] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
 
   useEffect(() => {
+    if (!ready) return;
+
     const memberData = sessionStorage.getItem('member');
     if (!memberData) {
       navigate('/user/login');
@@ -29,7 +42,7 @@ const UserMain = () => {
     return () => {
       window.removeEventListener('shareRequestUpdated', handleShareRequestUpdate);
     };
-  }, [navigate]);
+  }, [navigate, ready]);
 
   const fetchBookings = async (memberAccount) => {
     try {
@@ -45,22 +58,22 @@ const UserMain = () => {
   };
 
   if (!member) {
-    return <div>加载中...</div>;
+    return <div>{t('common.loading')}</div>;
   }
 
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">会员主页</h1>
+        <h1 className="mt-4">{t('user.main.title')}</h1>
         <ol className="breadcrumb mb-4">
-          <li className="breadcrumb-item active">主页</li>
+          <li className="breadcrumb-item active">{t('common.home')}</li>
         </ol>
         <div className="row">
           <div className="col-xl-6">
             <div className="card mb-4">
               <div className="card-header">
                 <i className="bi bi-person me-1"></i>
-                个人信息
+                {t('user.main.profile')}
               </div>
               <div className="card-body">
                 <div className="text-center mb-3">
@@ -71,28 +84,28 @@ const UserMain = () => {
                       className="img-thumbnail"
                       style={{ maxWidth: '150px', maxHeight: '150px', objectFit: 'cover' }}
                       onError={(e) => {
-                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="150" height="150" fill="%23ddd"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3E暂无照片%3C/text%3E%3C/svg%3E';
-                        e.target.alt = '照片加载失败';
+                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150"%3E%3Crect width="150" height="150" fill="%23ddd"/%3E%3C/svg%3E';
+                        e.target.alt = t('user.main.noPhoto');
                       }}
                     />
                   ) : (
                     <div className="bg-light d-inline-block p-4 rounded">
                       <i className="bi bi-person fs-1 text-muted"></i>
-                      <p className="text-muted mt-2 mb-0 small">暂无照片</p>
+                      <p className="text-muted mt-2 mb-0 small">{t('user.main.noPhoto')}</p>
                     </div>
                   )}
                 </div>
                 <div className="row">
                   <div className="col-md-6">
-                    <p><strong>会员账号：</strong>{member.memberAccount}</p>
-                    <p><strong>姓名：</strong>{member.memberName}</p>
-                    <p><strong>性别：</strong>{member.memberGender}</p>
-                    <p><strong>电话：</strong>{member.memberPhone}</p>
+                    <p><strong>{t('member.field.account')}</strong>{member.memberAccount}</p>
+                    <p><strong>{t('member.field.name')}</strong>{member.memberName}</p>
+                    <p><strong>{t('member.field.gender')}</strong>{member.memberGender}</p>
+                    <p><strong>{t('member.field.phone')}</strong>{member.memberPhone}</p>
                   </div>
                   <div className="col-md-6">
-                    <p><strong>年龄：</strong>{member.memberAge}</p>
-                    <p><strong>身高：</strong>{member.memberHeight} cm</p>
-                    <p><strong>体重：</strong>{member.memberWeight} kg</p>
+                    <p><strong>{t('member.field.age')}</strong>{member.memberAge}</p>
+                    <p><strong>{t('member.field.height')}</strong>{member.memberHeight} cm</p>
+                    <p><strong>{t('member.field.weight')}</strong>{member.memberWeight} kg</p>
                   </div>
                 </div>
                 <div className="mt-3">
@@ -100,7 +113,7 @@ const UserMain = () => {
                     to={`/user/info/${member.memberAccount}`}
                     className="btn btn-primary"
                   >
-                    查看详细信息
+                    {t('common.details')}
                   </Link>
                 </div>
               </div>
@@ -110,15 +123,15 @@ const UserMain = () => {
             <div className="card mb-4">
               <div className="card-header">
                 <i className="bi bi-calendar-event me-1"></i>
-                会籍信息
+                {t('user.main.membership')}
               </div>
               <div className="card-body">
-                <p><strong>办卡时间：</strong>{formatDate(member.cardTime)}</p>
-                <p><strong>购买课时：</strong>{member.cardClass}</p>
-                <p><strong>剩余课时：</strong>{member.cardNextClass}</p>
-                <p><strong>会籍剩余时长：</strong>{
+                <p><strong>{t('member.field.cardTime')}</strong>{formatDate(member.cardTime, locale)}</p>
+                <p><strong>{t('member.field.cardClass')}</strong>{member.cardClass}</p>
+                <p><strong>{t('member.field.cardNextClass')}</strong>{member.cardNextClass}</p>
+                <p><strong>{t('member.field.remaining')}</strong>{
                   (() => {
-                    const remaining = membershipRemaining(member.cardTime, member.membershipDuration);
+                    const remaining = membershipRemaining(member.cardTime, member.membershipDuration, remainingLabels);
                     return remaining.expired
                       ? <span className="text-danger">{remaining.text}</span>
                       : remaining.text;
@@ -129,13 +142,13 @@ const UserMain = () => {
                     to={`/user/classes/${member.memberAccount}`}
                     className="btn btn-primary me-2"
                   >
-                    我的课程
+                    {t('user.class.title')}
                   </Link>
                   <Link
                     to={`/user/classes/apply/${member.memberAccount}`}
                     className="btn btn-success"
                   >
-                    报名选课
+                    {t('user.class.apply')}
                   </Link>
                 </div>
               </div>
@@ -143,7 +156,7 @@ const UserMain = () => {
           </div>
         </div>
 
-        {/* 器材预约信息 */}
+        {/* equipment booking summary */}
         <div className="row">
           <div className="col-xl-12">
             <div className="card mb-4">
@@ -151,30 +164,30 @@ const UserMain = () => {
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
                     <i className="bi bi-gear me-1"></i>
-                    器材预约信息
+                    {t('user.main.bookings')}
                   </div>
                   <Link
                     to={`/user/equipment-booking/${member.memberAccount}`}
                     className="btn btn-info btn-sm"
                   >
-                    查看全部
+                    {t('common.viewAll')}
                   </Link>
                 </div>
               </div>
               <div className="card-body">
                 {bookingsLoading ? (
-                  <p>加载中...</p>
+                  <p>{t('common.loading')}</p>
                 ) : bookings.length > 0 ? (
                   <div className="table-responsive">
                     <table className="table table-striped table-hover">
                       <thead>
                         <tr>
-                          <th>器材名称</th>
-                          <th>器材位置</th>
-                          <th>开始时间</th>
-                          <th>结束时间</th>
-                          <th>训练地址备注</th>
-                          <th>操作</th>
+                          <th>{t('user.booking.equipmentName')}</th>
+                          <th>{t('user.booking.equipmentLocation')}</th>
+                          <th>{t('user.booking.startTime')}</th>
+                          <th>{t('user.booking.endTime')}</th>
+                          <th>{t('user.booking.locationNote')}</th>
+                          <th>{t('common.actions')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -184,15 +197,15 @@ const UserMain = () => {
                             <tr key={id}>
                               <td>{booking.equipment_name}</td>
                               <td>{booking.equipment_location}</td>
-                              <td>{formatDateTime(booking.start_time)}</td>
-                              <td>{formatDateTime(booking.end_time)}</td>
+                              <td>{formatDateTime(booking.start_time, locale)}</td>
+                              <td>{formatDateTime(booking.end_time, locale)}</td>
                               <td>{booking.location_note || '-'}</td>
                               <td>
                                 <Link
                                   to={`/user/equipment-booking/detail/${id}/${member.memberAccount}`}
                                   className="btn btn-sm btn-primary"
                                 >
-                                  查看详情
+                                  {t('common.details')}
                                 </Link>
                               </td>
                             </tr>
@@ -203,19 +216,19 @@ const UserMain = () => {
                     {bookings.length > 5 && (
                       <div className="text-center mt-2">
                         <small className="text-muted">
-                          显示最近5条预约，共有 {bookings.length} 条预约记录
+                          {t('user.main.recentBookings', { count: bookings.length })}
                         </small>
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="text-center py-3">
-                    <p className="text-muted mb-3">暂无器材预约记录</p>
+                    <p className="text-muted mb-3">{t('user.main.noBookings')}</p>
                     <Link
                       to={`/user/equipment-booking/${member.memberAccount}`}
                       className="btn btn-primary"
                     >
-                      立即预约
+                      {t('user.main.bookNow')}
                     </Link>
                   </div>
                 )}

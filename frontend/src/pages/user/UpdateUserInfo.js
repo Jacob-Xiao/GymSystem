@@ -3,10 +3,12 @@ import { useNavigate, Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { userAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const UpdateUserInfo = () => {
   const navigate = useNavigate();
   const ready = useAuthGuard('user');
+  const { t } = useI18n();
   const { account } = useParams();
   const [formData, setFormData] = useState({
     memberAccount: account,
@@ -38,11 +40,11 @@ const UpdateUserInfo = () => {
         });
       }
     } catch (error) {
-      setError('加载信息失败');
+      setError(t('user.booking.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [account]);
+  }, [account, t]);
 
   useEffect(() => {
     if (ready) fetchMember();
@@ -101,10 +103,10 @@ const UpdateUserInfo = () => {
         }
         navigate(`/user/info/${account}`);
       } else {
-        setError(response.data.message || '更新失败');
+        setError(response.data.message || t('member.update.failed'));
       }
     } catch (error) {
-      setError(error.response?.data?.message || '更新失败');
+      setError(error.response?.data?.message || t('member.update.failed'));
     }
   };
 
@@ -112,7 +114,7 @@ const UpdateUserInfo = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </UserLayout>
     );
@@ -121,20 +123,20 @@ const UpdateUserInfo = () => {
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">修改个人信息</h1>
+        <h1 className="mt-4">{t('user.edit.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/user/main">主页</Link>
+            <Link to="/user/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to={`/user/info/${account}`}>个人信息</Link>
+            <Link to={`/user/info/${account}`}>{t('user.info.title')}</Link>
           </li>
-          <li className="breadcrumb-item active">修改个人信息</li>
+          <li className="breadcrumb-item active">{t('user.edit.title')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-person-check me-1"></i>
-            修改个人信息
+            {t('user.edit.title')}
           </div>
           <div className="card-body">
             {error && (
@@ -145,7 +147,7 @@ const UpdateUserInfo = () => {
             <form onSubmit={handleSubmit}>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">会员账号</label>
+                  <label className="form-label">{t('member.field.account')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -154,7 +156,7 @@ const UpdateUserInfo = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">姓名</label>
+                  <label className="form-label">{t('member.field.name')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -167,7 +169,7 @@ const UpdateUserInfo = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">性别</label>
+                  <label className="form-label">{t('member.field.gender')}</label>
                   <select
                     className="form-control"
                     name="memberGender"
@@ -175,13 +177,13 @@ const UpdateUserInfo = () => {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">请选择</option>
-                    <option value="男">男</option>
-                    <option value="女">女</option>
+                    <option value="">{t('common.selectPlaceholder')}</option>
+                    <option value={t('common.male')}>{t('common.male')}</option>
+                    <option value={t('common.female')}>{t('common.female')}</option>
                   </select>
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">年龄</label>
+                  <label className="form-label">{t('member.field.age')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -193,7 +195,7 @@ const UpdateUserInfo = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">身高(cm)</label>
+                  <label className="form-label">{t('member.field.height')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -203,7 +205,7 @@ const UpdateUserInfo = () => {
                   />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">体重(kg)</label>
+                  <label className="form-label">{t('member.field.weight')}</label>
                   <input
                     type="number"
                     className="form-control"
@@ -215,7 +217,7 @@ const UpdateUserInfo = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-6">
-                  <label className="form-label">电话</label>
+                  <label className="form-label">{t('member.field.phone')}</label>
                   <input
                     type="text"
                     className="form-control"
@@ -227,12 +229,12 @@ const UpdateUserInfo = () => {
               </div>
               <div className="row mb-3">
                 <div className="col-md-12">
-                  <label className="form-label">会员照片</label>
+                  <label className="form-label">{t('member.field.photo')}</label>
                   <div className="mb-2">
                     {formData.memberPhoto ? (
                       <img 
                         src={formData.memberPhoto} 
-                        alt="预览"
+                        alt={t('member.field.photo')}
                         className="img-thumbnail"
                         style={{ maxWidth: '150px', maxHeight: '150px', objectFit: 'cover' }}
                         onError={(e) => {
@@ -242,7 +244,7 @@ const UpdateUserInfo = () => {
                     ) : (
                       <div className="bg-light d-inline-block p-3 rounded">
                         <i className="bi bi-image text-muted"></i>
-                        <p className="text-muted mb-0 small">暂无照片</p>
+                        <p className="text-muted mb-0 small">{t('user.main.noPhoto')}</p>
                       </div>
                     )}
                   </div>
@@ -264,11 +266,11 @@ const UpdateUserInfo = () => {
                       }
                     }}
                   />
-                  <small className="form-text text-muted">可选择本地图片文件上传，或输入图片URL地址</small>
+                  <small className="form-text text-muted">{t('member.field.photo')}</small>
                   <input
                     type="text"
                     className="form-control mt-2"
-                    placeholder="或输入图片URL地址（可选）"
+                    placeholder={t('member.field.photo')}
                     onChange={(e) => {
                       if (e.target.value) {
                         setFormData({
@@ -282,10 +284,10 @@ const UpdateUserInfo = () => {
               </div>
               <div className="mt-4 mb-0">
                 <button type="submit" className="btn btn-primary">
-                  保存
+                  {t('common.save')}
                 </button>
                 <Link to={`/user/info/${account}`} className="btn btn-secondary ms-2">
-                  取消
+                  {t('common.cancel')}
                 </Link>
               </div>
             </form>

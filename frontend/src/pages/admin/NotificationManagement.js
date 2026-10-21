@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import { notificationAPI, memberAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const NotificationManagement = () => {
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('notification'); // 'notification' or 'update'
   const [members, setMembers] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -63,12 +65,12 @@ const NotificationManagement = () => {
     e.preventDefault();
     
     if (!notificationForm.title || !notificationForm.content) {
-      alert('请输入通知标题和内容');
+      alert(t('notification.required.titleContent'));
       return;
     }
 
     if (notificationForm.targetType === 'specific' && notificationForm.selectedAccounts.length === 0) {
-      alert('请选择至少一个会员');
+      alert(t('notification.required.members'));
       return;
     }
 
@@ -83,7 +85,7 @@ const NotificationManagement = () => {
       });
 
       if (response.data.success) {
-        alert('通知发送成功');
+        alert(t('notification.sendSuccess'));
         setNotificationForm({
           title: '',
           content: '',
@@ -92,10 +94,10 @@ const NotificationManagement = () => {
         });
         fetchData();
       } else {
-        alert('发送失败：' + (response.data.message || '未知错误'));
+        alert(t('notification.sendFailed') + (response.data.message || t('server.genericError')));
       }
     } catch (error) {
-      alert('发送失败：' + (error.response?.data?.message || error.message));
+      alert(t('notification.sendFailed') + (error.response?.data?.message || error.message));
     }
   };
 
@@ -103,12 +105,12 @@ const NotificationManagement = () => {
     e.preventDefault();
 
     if (updateForm.targetType === 'specific' && updateForm.selectedAccounts.length === 0) {
-      alert('请选择至少一个会员');
+      alert(t('notification.required.members'));
       return;
     }
 
     if (!updateForm.cardNextClass && !updateForm.membershipDuration) {
-      alert('请至少输入课时数或会籍时长中的一个');
+      alert(t('notification.required.field'));
       return;
     }
 
@@ -121,7 +123,7 @@ const NotificationManagement = () => {
       });
 
       if (response.data.success) {
-        alert('会员信息更新成功');
+        alert(t('notification.updateSuccess'));
         setUpdateForm({
           targetType: 'all',
           selectedAccounts: [],
@@ -130,10 +132,10 @@ const NotificationManagement = () => {
         });
         fetchData();
       } else {
-        alert('更新失败：' + (response.data.message || '未知错误'));
+        alert(t('notification.updateFailed') + (response.data.message || t('server.genericError')));
       }
     } catch (error) {
-      alert('更新失败：' + (error.response?.data?.message || error.message));
+      alert(t('notification.updateFailed') + (error.response?.data?.message || error.message));
     }
   };
 
@@ -168,16 +170,16 @@ const NotificationManagement = () => {
   };
 
   const handleDeleteNotification = async (id) => {
-    if (!window.confirm('确定要删除这条通知吗？')) {
+    if (!window.confirm(t('notification.delete.confirm'))) {
       return;
     }
 
     try {
       await notificationAPI.delete(id);
       fetchData();
-      alert('通知删除成功');
+      alert(t('notification.deleteSuccess'));
     } catch (error) {
-      alert('删除失败：' + (error.response?.data?.message || error.message));
+      alert(t('notification.deleteFailed') + (error.response?.data?.message || error.message));
     }
   };
 
@@ -185,7 +187,7 @@ const NotificationManagement = () => {
     return (
       <AdminLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </AdminLayout>
     );
@@ -194,22 +196,22 @@ const NotificationManagement = () => {
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">通知管理</h1>
+        <h1 className="mt-4">{t('notification.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/admin/main">主页</Link>
+            <Link to="/admin/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">通知管理</li>
+          <li className="breadcrumb-item active">{t('notification.title')}</li>
         </ol>
 
-        {/* 标签页导航 */}
+        {/* tabs */}
         <ul className="nav nav-tabs mb-4">
           <li className="nav-item">
             <button
               className={`nav-link ${activeTab === 'notification' ? 'active' : ''}`}
               onClick={() => setActiveTab('notification')}
             >
-              发送通知
+              {t('notification.tab.send')}
             </button>
           </li>
           <li className="nav-item">
@@ -217,24 +219,24 @@ const NotificationManagement = () => {
               className={`nav-link ${activeTab === 'update' ? 'active' : ''}`}
               onClick={() => setActiveTab('update')}
             >
-              批量更新会员信息
+              {t('notification.card.batch')}
             </button>
           </li>
         </ul>
 
-        {/* 发送通知标签页 */}
+        {/* send notification */}
         {activeTab === 'notification' && (
           <div className="row">
             <div className="col-lg-8">
               <div className="card mb-4">
                 <div className="card-header">
                   <i className="bi bi-bell me-1"></i>
-                  发送通知
+                  {t('notification.tab.send')}
                 </div>
                 <div className="card-body">
                   <form onSubmit={handleNotificationSubmit}>
                     <div className="mb-3">
-                      <label className="form-label">通知标题 *</label>
+                      <label className="form-label">{t('notification.field.title')}</label>
                       <input
                         type="text"
                         className="form-control"
@@ -244,7 +246,7 @@ const NotificationManagement = () => {
                       />
                     </div>
                     <div className="mb-3">
-                      <label className="form-label">通知内容 *</label>
+                      <label className="form-label">{t('notification.field.content')}</label>
                       <textarea
                         className="form-control"
                         rows="5"
@@ -254,7 +256,7 @@ const NotificationManagement = () => {
                       />
                     </div>
                     <div className="mb-3">
-                      <label className="form-label">发送对象 *</label>
+                      <label className="form-label">{t('notification.field.target')}</label>
                       <div>
                         <div className="form-check">
                           <input
@@ -267,7 +269,7 @@ const NotificationManagement = () => {
                             onChange={(e) => setNotificationForm({ ...notificationForm, targetType: e.target.value, selectedAccounts: [] })}
                           />
                           <label className="form-check-label" htmlFor="notificationAll">
-                            全体会员
+                            {t('notification.target.all')}
                           </label>
                         </div>
                         <div className="form-check">
@@ -281,17 +283,17 @@ const NotificationManagement = () => {
                             onChange={(e) => setNotificationForm({ ...notificationForm, targetType: e.target.value })}
                           />
                           <label className="form-check-label" htmlFor="notificationSpecific">
-                            个别会员
+                            {t('notification.target.specific')}
                           </label>
                         </div>
                       </div>
                     </div>
                     {notificationForm.targetType === 'specific' && (
                       <div className="mb-3">
-                        <label className="form-label">选择会员</label>
+                        <label className="form-label">{t('notification.field.members')}</label>
                         {members.length === 0 ? (
                           <div className="alert alert-warning">
-                            暂无会员数据，请先添加会员
+                            {t('notification.emptyMembers')}
                           </div>
                         ) : (
                           <>
@@ -312,14 +314,14 @@ const NotificationManagement = () => {
                               ))}
                             </div>
                             <small className="text-muted">
-                              已选择 {notificationForm.selectedAccounts.length} 位会员
+                              {t('notification.selected', { count: notificationForm.selectedAccounts.length })}
                             </small>
                           </>
                         )}
                       </div>
                     )}
                     <button type="submit" className="btn btn-primary">
-                      发送通知
+                      {t('notification.tab.send')}
                     </button>
                   </form>
                 </div>
@@ -329,11 +331,11 @@ const NotificationManagement = () => {
               <div className="card">
                 <div className="card-header">
                   <i className="bi bi-list-ul me-1"></i>
-                  通知记录
+                  {t('notification.card.records')}
                 </div>
                 <div className="card-body" style={{ maxHeight: '600px', overflowY: 'auto' }}>
                   {notifications.length === 0 ? (
-                    <p className="text-muted">暂无通知记录</p>
+                    <p className="text-muted">{t('notification.emptyRecords')}</p>
                   ) : (
                     notifications.map((notification) => (
                       <div key={notification.notification_id} className="border-bottom pb-3 mb-3">
@@ -342,7 +344,7 @@ const NotificationManagement = () => {
                             <h6>{notification.title}</h6>
                             <p className="small text-muted mb-1">{notification.content}</p>
                             <small className="text-muted">
-                              发送给: {notification.target_type === 'all' ? '全体会员' : `${notification.target_accounts?.length || 0}位会员`}
+                              {t('notification.sentTo')}: {notification.target_type === 'all' ? t('notification.sentToAll') : t('notification.sentToCount', { count: notification.target_accounts?.length || 0 })}
                             </small>
                             <br />
                             <small className="text-muted">
@@ -353,7 +355,7 @@ const NotificationManagement = () => {
                             className="btn btn-sm btn-outline-danger ms-2"
                             onClick={() => handleDeleteNotification(notification.notification_id)}
                           >
-                            删除
+                            {t('common.delete')}
                           </button>
                         </div>
                       </div>
@@ -365,17 +367,17 @@ const NotificationManagement = () => {
           </div>
         )}
 
-        {/* 批量更新会员信息标签页 */}
+        {/* batch update */}
         {activeTab === 'update' && (
           <div className="card mb-4">
             <div className="card-header">
               <i className="bi bi-pencil-square me-1"></i>
-              批量更新会员信息
+              {t('notification.card.batch')}
             </div>
             <div className="card-body">
               <form onSubmit={handleUpdateSubmit}>
                 <div className="mb-3">
-                  <label className="form-label">更新对象 *</label>
+                  <label className="form-label">{t('notification.field.updateTarget')}</label>
                   <div>
                     <div className="form-check">
                       <input
@@ -388,7 +390,7 @@ const NotificationManagement = () => {
                         onChange={(e) => setUpdateForm({ ...updateForm, targetType: e.target.value, selectedAccounts: [] })}
                       />
                       <label className="form-check-label" htmlFor="updateAll">
-                        全体会员
+                        {t('notification.target.all')}
                       </label>
                     </div>
                     <div className="form-check">
@@ -402,17 +404,17 @@ const NotificationManagement = () => {
                         onChange={(e) => setUpdateForm({ ...updateForm, targetType: e.target.value })}
                       />
                       <label className="form-check-label" htmlFor="updateSpecific">
-                        个别会员
+                        {t('notification.target.specific')}
                       </label>
                     </div>
                   </div>
                 </div>
                 {updateForm.targetType === 'specific' && (
                   <div className="mb-3">
-                    <label className="form-label">选择会员</label>
+                    <label className="form-label">{t('notification.field.members')}</label>
                     {members.length === 0 ? (
                       <div className="alert alert-warning">
-                        暂无会员数据，请先添加会员
+                        {t('notification.emptyMembers')}
                       </div>
                     ) : (
                       <>
@@ -433,7 +435,7 @@ const NotificationManagement = () => {
                           ))}
                         </div>
                         <small className="text-muted">
-                          已选择 {updateForm.selectedAccounts.length} 位会员
+                          {t('notification.selected', { count: updateForm.selectedAccounts.length })}
                         </small>
                       </>
                     )}
@@ -441,34 +443,34 @@ const NotificationManagement = () => {
                 )}
                 <div className="row mb-3">
                   <div className="col-md-6">
-                    <label className="form-label">剩余课时数</label>
+                    <label className="form-label">{t('notification.field.cardNextClass')}</label>
                     <input
                       type="number"
                       className="form-control"
                       value={updateForm.cardNextClass}
                       onChange={(e) => setUpdateForm({ ...updateForm, cardNextClass: e.target.value })}
                       min="0"
-                      placeholder="留空则不更新"
+                      placeholder={t('notification.placeholder.optional')}
                     />
                   </div>
                   <div className="col-md-6">
-                    <label className="form-label">会籍时长（月）</label>
+                    <label className="form-label">{t('notification.field.membershipDuration')}</label>
                     <input
                       type="number"
                       className="form-control"
                       value={updateForm.membershipDuration}
                       onChange={(e) => setUpdateForm({ ...updateForm, membershipDuration: e.target.value })}
                       min="0"
-                      placeholder="留空则不更新"
+                      placeholder={t('notification.placeholder.optional')}
                     />
                   </div>
                 </div>
                 <div className="alert alert-info">
                   <i className="bi bi-info-circle me-1"></i>
-                  提示：至少需要填写一个字段。留空的字段将不会被更新。
+                  {t('notification.hint.atLeastOne')}
                 </div>
                 <button type="submit" className="btn btn-primary">
-                  更新会员信息
+                  {t('notification.action.update')}
                 </button>
               </form>
             </div>

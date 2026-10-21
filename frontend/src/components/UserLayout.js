@@ -2,9 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { equipmentBookingAPI } from '../services/api';
 import { clearMemberSession, getMemberAccount } from '../utils/session';
+import { useI18n } from '../i18n';
+import LanguageSwitch from './LanguageSwitch';
 
 const UserLayout = ({ children }) => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [unreadCount, setUnreadCount] = useState(0);
 
   const handleLogout = () => {
@@ -19,7 +22,7 @@ const UserLayout = ({ children }) => {
     try {
       const response = await equipmentBookingAPI.getReceivedShareRequests(memberAccount);
       if (response.data.success) {
-        // 只计算pending状态的请求
+        // Only pending requests count as unread.
         const pendingCount = response.data.data.filter(req => req.status === 'pending').length;
         setUnreadCount(pendingCount);
       }
@@ -28,15 +31,12 @@ const UserLayout = ({ children }) => {
     }
   }, [memberAccount]);
 
-  // 获取未读分享请求数量
+  // Refresh the unread badge on mount, every 30s, and when a page reports a change.
   useEffect(() => {
     if (!memberAccount) return;
 
     fetchUnreadCount();
-    // 每30秒刷新一次未读数量
     const interval = setInterval(fetchUnreadCount, 30000);
-
-    // 监听分享请求更新事件
     window.addEventListener('shareRequestUpdated', fetchUnreadCount);
 
     return () => {
@@ -49,9 +49,12 @@ const UserLayout = ({ children }) => {
     <div className="sb-nav-fixed">
       <nav className="sb-topnav navbar navbar-expand navbar-dark bg-dark">
         <Link className="navbar-brand ps-3" to="/user/main">
-          健身房管理系统
+          {t('app.name')}
         </Link>
-        <ul className="navbar-nav ms-auto me-3 me-lg-4">
+        <ul className="navbar-nav ms-auto me-3 me-lg-4 flex-row align-items-center">
+          <li className="nav-item">
+            <LanguageSwitch />
+          </li>
           <li className="nav-item dropdown">
             <button
               type="button"
@@ -59,7 +62,7 @@ const UserLayout = ({ children }) => {
               id="navbarDropdown"
               data-bs-toggle="dropdown"
               aria-expanded="false"
-              aria-label="账户菜单"
+              aria-label={t('app.accountMenu')}
             >
               <i className="bi bi-person-fill"></i>
               {unreadCount > 0 && (
@@ -80,7 +83,7 @@ const UserLayout = ({ children }) => {
                     onClick={fetchUnreadCount}
                   >
                     <i className="bi bi-envelope me-2"></i>
-                    消息
+                    {t('user.shareRequests')}
                     {unreadCount > 0 && (
                       <span className="badge bg-danger ms-2">{unreadCount > 99 ? '99+' : unreadCount}</span>
                     )}
@@ -91,7 +94,7 @@ const UserLayout = ({ children }) => {
               <li>
                 <button type="button" className="dropdown-item" onClick={handleLogout}>
                   <i className="bi bi-box-arrow-right me-2"></i>
-                  退出登录
+                  {t('app.logout')}
                 </button>
               </li>
             </ul>
@@ -107,7 +110,7 @@ const UserLayout = ({ children }) => {
                   <div className="sb-nav-link-icon">
                     <i className="bi bi-house"></i>
                   </div>
-                  主页
+                  {t('common.home')}
                 </Link>
                 {memberAccount && (
                   <>
@@ -118,7 +121,7 @@ const UserLayout = ({ children }) => {
                       <div className="sb-nav-link-icon">
                         <i className="bi bi-calendar-plus"></i>
                       </div>
-                      报名选课
+                      {t('user.class.apply')}
                     </Link>
                     <Link
                       className="nav-link"
@@ -127,7 +130,7 @@ const UserLayout = ({ children }) => {
                       <div className="sb-nav-link-icon">
                         <i className="bi bi-gear"></i>
                       </div>
-                      器材预约
+                      {t('user.booking.title')}
                     </Link>
                   </>
                 )}

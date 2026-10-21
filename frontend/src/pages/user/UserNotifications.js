@@ -4,9 +4,12 @@ import { formatDateTime } from '../../utils/date';
 import UserLayout from '../../components/UserLayout';
 import { notificationAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const UserNotifications = () => {
   const ready = useAuthGuard('user');
+  const { t, language } = useI18n();
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US';
   const { account } = useParams();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +35,7 @@ const UserNotifications = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </UserLayout>
     );
@@ -41,17 +44,17 @@ const UserNotifications = () => {
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">系统通知</h1>
+        <h1 className="mt-4">{t('user.notifications.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/user/main">主页</Link>
+            <Link to="/user/main">{t('common.home')}</Link>
           </li>
-          <li className="breadcrumb-item active">通知</li>
+          <li className="breadcrumb-item active">{t('user.messages.tabNotifications')}</li>
         </ol>
         <div className="card mb-4">
           <div className="card-header">
             <i className="bi bi-bell me-1"></i>
-            通知列表
+            {t('user.notifications.cardTitle')}
           </div>
           <div className="card-body">
             {notifications.length > 0 ? (
@@ -65,7 +68,7 @@ const UserNotifications = () => {
                           {notification.content}
                         </div>
                         <small className="text-muted">
-                          {formatDateTime(notification.created_at)}
+                          {formatDateTime(notification.created_at, locale)}
                         </small>
                       </div>
                     </div>
@@ -75,7 +78,7 @@ const UserNotifications = () => {
             ) : (
               <div className="text-center py-5">
                 <i className="bi bi-bell-slash fs-1 text-muted"></i>
-                <p className="text-muted mt-3">暂无通知</p>
+                <p className="text-muted mt-3">{t('user.messages.emptyNotifications')}</p>
               </div>
             )}
           </div>

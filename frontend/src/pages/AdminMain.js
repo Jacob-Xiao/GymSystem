@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import useAuthGuard from '../hooks/useAuthGuard';
+import { useI18n } from '../i18n';
 
 const AdminMain = () => {
   const ready = useAuthGuard('admin');
+  const { t } = useI18n();
   const [stats, setStats] = useState({
     memberTotal: 0,
     employeeTotal: 0,
@@ -23,9 +25,9 @@ const AdminMain = () => {
   return (
     <AdminLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">管理员主页</h1>
+        <h1 className="mt-4">{t('admin.main.title')}</h1>
         <ol className="breadcrumb mb-4">
-          <li className="breadcrumb-item active">仪表盘</li>
+          <li className="breadcrumb-item active">{t('admin.main.breadcrumb')}</li>
         </ol>
         <div className="row">
           <div className="col-xl-3 col-md-6">
@@ -33,7 +35,7 @@ const AdminMain = () => {
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
-                    <div>会员人数</div>
+                    <div>{t('admin.main.memberTotal')}</div>
                     <div className="h2">{stats.memberTotal}</div>
                   </div>
                   <i className="bi bi-people fs-1"></i>
@@ -41,7 +43,7 @@ const AdminMain = () => {
               </div>
               <div className="card-footer d-flex align-items-center justify-content-between">
                 <a className="small text-white stretched-link" href="/admin/members">
-                  查看详情
+                  {t('common.details')}
                 </a>
                 <div className="small text-white">
                   <i className="bi bi-chevron-right"></i>
@@ -54,7 +56,7 @@ const AdminMain = () => {
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
-                    <div>员工人数</div>
+                    <div>{t('admin.main.employeeTotal')}</div>
                     <div className="h2">{stats.employeeTotal}</div>
                   </div>
                   <i className="bi bi-person-badge fs-1"></i>
@@ -62,7 +64,7 @@ const AdminMain = () => {
               </div>
               <div className="card-footer d-flex align-items-center justify-content-between">
                 <a className="small text-white stretched-link" href="/admin/employees">
-                  查看详情
+                  {t('common.details')}
                 </a>
                 <div className="small text-white">
                   <i className="bi bi-chevron-right"></i>
@@ -75,7 +77,7 @@ const AdminMain = () => {
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
-                    <div>健身房总人数</div>
+                    <div>{t('admin.main.humanTotal')}</div>
                     <div className="h2">{stats.humanTotal}</div>
                   </div>
                   <i className="bi bi-people-fill fs-1"></i>
@@ -88,7 +90,7 @@ const AdminMain = () => {
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
-                    <div>器材数</div>
+                    <div>{t('admin.main.equipmentTotal')}</div>
                     <div className="h2">{stats.equipmentTotal}</div>
                   </div>
                   <i className="bi bi-gear fs-1"></i>
@@ -96,7 +98,7 @@ const AdminMain = () => {
               </div>
               <div className="card-footer d-flex align-items-center justify-content-between">
                 <a className="small text-white stretched-link" href="/admin/equipment">
-                  查看详情
+                  {t('common.details')}
                 </a>
                 <div className="small text-white">
                   <i className="bi bi-chevron-right"></i>

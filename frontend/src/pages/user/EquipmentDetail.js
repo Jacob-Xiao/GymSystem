@@ -3,9 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import UserLayout from '../../components/UserLayout';
 import { equipmentAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 const EquipmentDetail = () => {
   const ready = useAuthGuard('user');
+  const { t } = useI18n();
   const { equipmentId, memberAccount } = useParams();
   const [equipment, setEquipment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,7 @@ const EquipmentDetail = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </UserLayout>
     );
@@ -41,7 +43,7 @@ const EquipmentDetail = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="alert alert-danger">器材不存在</div>
+          <div className="alert alert-danger">{t('equipment.detail.notFound')}</div>
         </div>
       </UserLayout>
     );
@@ -50,22 +52,22 @@ const EquipmentDetail = () => {
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">器材详情</h1>
+        <h1 className="mt-4">{t('equipment.detail.title')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/user/main">主页</Link>
+            <Link to="/user/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to={`/user/equipment-booking/${memberAccount}`}>器材预约</Link>
+            <Link to={`/user/equipment-booking/${memberAccount}`}>{t('user.booking.title')}</Link>
           </li>
-          <li className="breadcrumb-item active">器材详情</li>
+          <li className="breadcrumb-item active">{t('equipment.detail.title')}</li>
         </ol>
         <div className="row">
           <div className="col-md-6">
             <div className="card mb-4">
               <div className="card-header">
                 <i className="bi bi-image me-1"></i>
-                器材图片
+                {t('equipment.detail.image')}
               </div>
               <div className="card-body text-center">
                 {equipment.equipment_image ? (
@@ -76,13 +78,13 @@ const EquipmentDetail = () => {
                     style={{ maxHeight: '400px', objectFit: 'contain' }}
                     onError={(e) => {
                       e.target.src = '/img/error-404-monochrome.svg';
-                      e.target.alt = '图片加载失败';
+                      e.target.alt = t('equipment.field.noImage');
                     }}
                   />
                 ) : (
                   <div className="py-5">
                     <i className="bi bi-image fs-1 text-muted"></i>
-                    <p className="text-muted mt-2">暂无图片</p>
+                    <p className="text-muted mt-2">{t('equipment.field.noImage')}</p>
                   </div>
                 )}
               </div>
@@ -92,23 +94,23 @@ const EquipmentDetail = () => {
             <div className="card mb-4">
               <div className="card-header">
                 <i className="bi bi-info-circle me-1"></i>
-                器材信息
+                {t('equipment.detail.info')}
               </div>
               <div className="card-body">
                 <div className="row mb-3">
-                  <div className="col-md-4"><strong>器材名称：</strong></div>
+                  <div className="col-md-4"><strong>{t('equipment.field.name')}</strong></div>
                   <div className="col-md-8">{equipment.equipment_name}</div>
                 </div>
                 <div className="row mb-3">
-                  <div className="col-md-4"><strong>器材位置：</strong></div>
+                  <div className="col-md-4"><strong>{t('equipment.field.location')}</strong></div>
                   <div className="col-md-8">{equipment.equipment_location}</div>
                 </div>
                 <div className="row mb-3">
-                  <div className="col-md-4"><strong>器材状态：</strong></div>
+                  <div className="col-md-4"><strong>{t('equipment.field.status')}</strong></div>
                   <div className="col-md-8">
                     <span className={`badge ${
-                      equipment.equipment_status === '正常' ? 'bg-success' : 
-                      equipment.equipment_status === '损坏' ? 'bg-danger' : 'bg-warning'
+                      equipment.equipment_status === t('equipment.status.normal') ? 'bg-success' : 
+                      equipment.equipment_status === t('equipment.status.damaged') ? 'bg-danger' : 'bg-warning'
                     }`}>
                       {equipment.equipment_status}
                     </span>
@@ -116,7 +118,7 @@ const EquipmentDetail = () => {
                 </div>
                 {equipment.equipment_message && (
                   <div className="row mb-3">
-                    <div className="col-md-4"><strong>备注信息：</strong></div>
+                    <div className="col-md-4"><strong>{t('equipment.field.message')}</strong></div>
                     <div className="col-md-8">{equipment.equipment_message}</div>
                   </div>
                 )}
@@ -125,13 +127,13 @@ const EquipmentDetail = () => {
             <div className="card mb-4">
               <div className="card-header">
                 <i className="bi bi-list-check me-1"></i>
-                器材功能
+                {t('equipment.detail.function')}
               </div>
               <div className="card-body">
                 {equipment.equipment_function ? (
                   <div style={{ whiteSpace: 'pre-wrap' }}>{equipment.equipment_function}</div>
                 ) : (
-                  <p className="text-muted">暂无功能说明</p>
+                  <p className="text-muted">{t('equipment.detail.noFunction')}</p>
                 )}
               </div>
             </div>
@@ -141,7 +143,7 @@ const EquipmentDetail = () => {
                   to={`/user/equipment-booking/${memberAccount}`}
                   className="btn btn-secondary w-100"
                 >
-                  返回器材列表
+                  {t('user.booking.backToList')}
                 </Link>
               </div>
             </div>

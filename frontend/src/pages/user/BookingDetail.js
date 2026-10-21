@@ -4,6 +4,7 @@ import { formatDateTime } from '../../utils/date';
 import UserLayout from '../../components/UserLayout';
 import { equipmentBookingAPI } from '../../services/api';
 import useAuthGuard from '../../hooks/useAuthGuard';
+import { useI18n } from '../../i18n';
 
 // 单行训练记录结构：组数、重量、重复次数、是否完成、训练动作名称
 const createEmptyRow = (setNumber) => ({
@@ -17,13 +18,18 @@ const createEmptyRow = (setNumber) => ({
 const BookingDetail = () => {
   const navigate = useNavigate();
   const ready = useAuthGuard('user');
+  const { t, language } = useI18n();
+  const locale = language === 'zh' ? 'zh-CN' : 'en-US';
   const { bookingId, memberAccount } = useParams();
   const [booking, setBooking] = useState(null);
   const [shareRequests, setShareRequests] = useState([]);
-  const [trainingSessions, setTrainingSessions] = useState([]); // 已保存的固定模板（只读）
-  const [trainingRows, setTrainingRows] = useState([createEmptyRow(1)]); // 当前可编辑的新记录
+  const [trainingSessions, setTrainingSessions] = useState([]); // saved plans (read only)
+  const [trainingRows, setTrainingRows] = useState([createEmptyRow(1)]); // the plan being edited
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  // Drives the alert style without inspecting the message text, which would break
+  // once the copy is translated.
+  const [isError, setIsError] = useState(false);
   const [savingRecords, setSavingRecords] = useState(false);
 
   const fetchBookingDetail = useCallback(async () => {
@@ -35,19 +41,21 @@ const BookingDetail = () => {
         setBooking(data);
         setShareRequests(data.shareRequests || []);
         setTrainingSessions(data.trainingSessions || []);
-        setTrainingRows([createEmptyRow(1)]); // 可编辑区始终从新的一行开始
+        setTrainingRows([createEmptyRow(1)]); // the editable area always starts from a fresh row
       } else {
         setBooking(null);
-        setMessage(response.data.message || '加载失败');
+        setIsError(true);
+      setMessage(response.data.message || t('user.booking.loadFailed'));
       }
     } catch (error) {
       console.error('Error fetching booking detail:', error);
       setBooking(null);
-      setMessage(error.response?.data?.message || '预约不存在');
+      setIsError(true);
+      setMessage(error.response?.data?.message || t('user.booking.notFound'));
     } finally {
       setLoading(false);
     }
-  }, [bookingId]);
+  }, [bookingId, t]);
 
   useEffect(() => {
     if (ready) fetchBookingDetail();
@@ -56,10 +64,12 @@ const BookingDetail = () => {
   const handleShareRequest = async (action, requestId) => {
     try {
       await equipmentBookingAPI.handleShareRequest(requestId, parseInt(memberAccount), action);
-      setMessage(action === 'accept' ? '已接受分享请求' : '已拒绝分享请求');
+      setIsError(false);
+      setMessage(action === 'accept' ? t('user.booking.accepted') : t('user.booking.rejected'));
       fetchBookingDetail();
     } catch (error) {
-      setMessage(error.response?.data?.message || '操作失败');
+      setIsError(true);
+      setMessage(error.response?.data?.message || t('user.booking.actionFailed'));
     }
   };
 
@@ -95,24 +105,28 @@ const BookingDetail = () => {
         records,
         false,
         parseInt(memberAccount)
-      ); // 确认计划，第四列完成可编辑
-      setMessage('训练计划已确认');
+      ); // confirm the plan; the "done" column stays editable
+      setIsError(false);
+      setMessage(t('user.booking.planConfirmed'));
       fetchBookingDetail();
     } catch (error) {
-      setMessage(error.response?.data?.message || '保存失败');
+      setIsError(true);
+      setMessage(error.response?.data?.message || t('user.booking.saveFailed'));
     } finally {
       setSavingRecords(false);
     }
   };
 
   const handleDeleteTrainingSession = async (sessionId) => {
-    if (!window.confirm('确定要删除该训练计划吗？')) return;
+    if (!window.confirm(t('user.booking.deleteConfirm'))) return;
     try {
       await equipmentBookingAPI.deleteTrainingSession(bookingId, sessionId, parseInt(memberAccount));
-      setMessage('已删除');
+      setIsError(false);
+      setMessage(t('user.booking.deleted'));
       fetchBookingDetail();
     } catch (error) {
-      setMessage(error.response?.data?.message || '删除失败');
+      setIsError(true);
+      setMessage(error.response?.data?.message || t('user.booking.deleteFailed'));
     }
   };
 
@@ -136,7 +150,8 @@ const BookingDetail = () => {
         )
       );
     } catch (error) {
-      setMessage(error.response?.data?.message || '更新失败');
+      setIsError(true);
+      setMessage(error.response?.data?.message || t('user.booking.updateFailed'));
     }
   };
 
@@ -146,7 +161,7 @@ const BookingDetail = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="text-center">加载中...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </UserLayout>
     );
@@ -156,8 +171,8 @@ const BookingDetail = () => {
     return (
       <UserLayout>
         <div className="container-fluid px-4">
-          <div className="alert alert-danger">{message || '预约不存在'}</div>
-          <Link to="/user/main" className="btn btn-secondary">返回主页</Link>
+          <div className="alert alert-danger">{message || t('user.booking.notFound')}</div>
+          <Link to="/user/main" className="btn btn-secondary">{t('common.home')}</Link>
         </div>
       </UserLayout>
     );
@@ -166,19 +181,19 @@ const BookingDetail = () => {
   return (
     <UserLayout>
       <div className="container-fluid px-4">
-        <h1 className="mt-4">预约详情</h1>
+        <h1 className="mt-4">{t('user.booking.detailTitle')}</h1>
         <ol className="breadcrumb mb-4">
           <li className="breadcrumb-item">
-            <Link to="/user/main">主页</Link>
+            <Link to="/user/main">{t('common.home')}</Link>
           </li>
           <li className="breadcrumb-item">
-            <Link to={`/user/equipment-booking/${memberAccount}`}>器材预约</Link>
+            <Link to={`/user/equipment-booking/${memberAccount}`}>{t('user.booking.title')}</Link>
           </li>
-          <li className="breadcrumb-item active">预约详情</li>
+          <li className="breadcrumb-item active">{t('user.booking.detailTitle')}</li>
         </ol>
 
         {message && (
-          <div className={`alert ${message.includes('失败') ? 'alert-danger' : 'alert-success'}`}>
+          <div className={`alert ${isError ? 'alert-danger' : 'alert-success'}`}>
             {message}
           </div>
         )}
@@ -188,51 +203,51 @@ const BookingDetail = () => {
             <div className="card mb-4">
               <div className="card-header">
                 <i className="bi bi-info-circle me-1"></i>
-                预约信息
+                {t('user.booking.infoCard')}
               </div>
               <div className="card-body">
                 <div className="row mb-3">
                   <div className="col-md-6">
-                    <strong>器材名称：</strong>{booking.equipment_name}
+                    <strong>{t('user.booking.equipmentName')}</strong>{booking.equipment_name}
                   </div>
                   <div className="col-md-6">
-                    <strong>器材位置：</strong>{booking.equipment_location}
+                    <strong>{t('user.booking.equipmentLocation')}</strong>{booking.equipment_location}
                   </div>
                 </div>
                 <div className="row mb-3">
                   <div className="col-md-6">
-                    <strong>预约会员：</strong>{booking.member_name} ({booking.member_account})
+                    <strong>{t('user.booking.member')}</strong>{booking.member_name} ({booking.member_account})
                   </div>
                   <div className="col-md-6">
-                    <strong>状态：</strong>
+                    <strong>{t('user.booking.status')}</strong>
                     <span className={`badge ${
                       booking.status === 'active' ? 'bg-success' : 
                       booking.status === 'cancelled' ? 'bg-danger' : 'bg-secondary'
                     }`}>
-                      {booking.status === 'active' ? '有效' : 
-                       booking.status === 'cancelled' ? '已取消' : '已完成'}
+                      {booking.status === 'active' ? t('user.booking.statusActive') : 
+                       booking.status === 'cancelled' ? t('user.booking.statusCancelled') : t('user.booking.statusCompleted')}
                     </span>
                   </div>
                 </div>
                 <div className="row mb-3">
                   <div className="col-md-6">
-                    <strong>开始时间：</strong>{formatDateTime(booking.start_time)}
+                    <strong>{t('user.booking.startTime')}</strong>{formatDateTime(booking.start_time, locale)}
                   </div>
                   <div className="col-md-6">
-                    <strong>结束时间：</strong>{formatDateTime(booking.end_time)}
+                    <strong>{t('user.booking.endTime')}</strong>{formatDateTime(booking.end_time, locale)}
                   </div>
                 </div>
                 {booking.location_note && (
                   <div className="row mb-3">
                     <div className="col-md-12">
-                      <strong>训练地址备注：</strong>
+                      <strong>{t('user.booking.locationNote')}</strong>
                       <p className="mt-1">{booking.location_note}</p>
                     </div>
                   </div>
                 )}
                 <div className="row">
                   <div className="col-md-12">
-                    <strong>创建时间：</strong>{formatDateTime(booking.created_at)}
+                    <strong>{t('user.booking.createdAt')}</strong>{formatDateTime(booking.created_at, locale)}
                   </div>
                 </div>
               </div>
@@ -244,7 +259,7 @@ const BookingDetail = () => {
               <div className="card mb-4">
                 <div className="card-header">
                   <i className="bi bi-people me-1"></i>
-                  分享请求
+                  {t('user.booking.shareRequests')}
                 </div>
                 <div className="card-body">
                   {shareRequests.length > 0 ? (
@@ -258,7 +273,7 @@ const BookingDetail = () => {
                                 {request.requester_name} ({request.requester_account})
                               </h6>
                               <p className="card-text small text-muted mb-2">
-                                请求时间：{formatDateTime(request.created_at)}
+                                {t('user.booking.requestTime')}: {formatDateTime(request.created_at, locale)}
                               </p>
                               <div className="btn-group w-100" role="group">
                                 <button
@@ -266,25 +281,25 @@ const BookingDetail = () => {
                                   className="btn btn-sm btn-success"
                                   onClick={() => handleShareRequest('accept', request.request_id)}
                                 >
-                                  接受
+                                  {t('user.booking.accept')}
                                 </button>
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-danger"
                                   onClick={() => handleShareRequest('reject', request.request_id)}
                                 >
-                                  拒绝
+                                  {t('user.booking.reject')}
                                 </button>
                               </div>
                             </div>
                           </div>
                         ))}
                       {shareRequests.filter(req => req.status === 'pending').length === 0 && (
-                        <p className="text-muted text-center">暂无待处理的分享请求</p>
+                        <p className="text-muted text-center">{t('user.booking.noPendingShares')}</p>
                       )}
                     </div>
                   ) : (
-                    <p className="text-muted text-center">暂无分享请求</p>
+                    <p className="text-muted text-center">{t('user.booking.noShareRequests')}</p>
                   )}
                 </div>
               </div>
@@ -293,31 +308,31 @@ const BookingDetail = () => {
             <div className="card">
               <div className="card-header">
                 <i className="bi bi-list-ul me-1"></i>
-                操作
+                {t('user.booking.actionsCard')}
               </div>
               <div className="card-body">
                 <Link
                   to={`/user/equipment-booking/${memberAccount}`}
                   className="btn btn-secondary w-100 mb-2"
                 >
-                  返回列表
+                  {t('user.booking.backToList')}
                 </Link>
                 {isOwner && booking.status === 'active' && (
                   <button
                     className="btn btn-danger w-100"
                     onClick={async () => {
-                      if (window.confirm('确定要取消这个预约吗？')) {
+                      if (window.confirm(t('user.booking.cancelConfirm'))) {
                         try {
                           await equipmentBookingAPI.cancelBooking(bookingId, parseInt(memberAccount));
-                          alert('预约已取消');
+                          alert(t('user.booking.cancelled'));
                           navigate(`/user/equipment-booking/${memberAccount}`);
                         } catch (error) {
-                          alert(error.response?.data?.message || '取消失败');
+                          alert(error.response?.data?.message || t('user.booking.cancelFailed'));
                         }
                       }
                     }}
                   >
-                    取消预约
+                    {t('user.booking.cancelForm')}
                   </button>
                 )}
               </div>
@@ -325,19 +340,19 @@ const BookingDetail = () => {
           </div>
         </div>
 
-        {/* 已保存的训练计划/记录：仅预约所有者可编辑完成列和删除；非所有者仅可查看 */}
+        {/* Saved plans: only the owner may toggle "done" or delete; others read only. */}
         {trainingSessions.map((session, idx) => {
           const key = session.session_id ?? `legacy-${idx}`;
-          const canEditCompleted = isOwner && !!session.session_id; // 仅预约所有者可编辑完成列
+          const canEditCompleted = isOwner && !!session.session_id; // only the owner may toggle the done column
           return (
             <div key={key} className="card mt-4">
               <div className="card-header bg-light d-flex justify-content-between align-items-center flex-wrap">
                 <span>
                   <i className="bi bi-journal-check me-1"></i>
-                  训练计划/记录
+                  {t('user.booking.trainingTitle')}
                   {session.created_at && (
                     <span className="text-muted small ms-2">
-                      {formatDateTime(session.created_at)}
+                      {formatDateTime(session.created_at, locale)}
                     </span>
                   )}
                 </span>
@@ -347,7 +362,7 @@ const BookingDetail = () => {
                     className="btn btn-outline-danger btn-sm"
                     onClick={() => handleDeleteTrainingSession(session.session_id)}
                   >
-                    删除计划
+                    {t('user.booking.deletePlan')}
                   </button>
                 )}
               </div>
@@ -356,11 +371,11 @@ const BookingDetail = () => {
                   <table className="table table-bordered align-middle mb-0">
                     <thead className="table-light">
                       <tr>
-                        <th style={{ width: '80px' }}>组数</th>
-                        <th>重量</th>
-                        <th>重复次数</th>
-                        <th style={{ width: '80px' }}>完成</th>
-                        <th>训练动作名称</th>
+                        <th style={{ width: '80px' }}>{t('user.booking.setNumber')}</th>
+                        <th>{t('user.booking.weight')}</th>
+                        <th>{t('user.booking.repetitions')}</th>
+                        <th style={{ width: '80px' }}>{t('user.booking.completed')}</th>
+                        <th>{t('user.booking.exerciseName')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -375,7 +390,7 @@ const BookingDetail = () => {
                                 type="button"
                                 className={`btn btn-sm ${r.completed ? 'btn-success' : 'btn-outline-secondary'}`}
                                 onClick={() => handleToggleRecordCompleted(r.record_id, !r.completed)}
-                                title={r.completed ? '已完成' : '点击标记完成'}
+                                title={r.completed ? t('user.booking.completed') : t('user.booking.confirmPlan')}
                               >
                                 <i className={`bi ${r.completed ? 'bi-check-lg' : 'bi-circle'}`}></i>
                               </button>
@@ -396,13 +411,13 @@ const BookingDetail = () => {
           );
         })}
 
-        {/* 新的可编辑训练计划/记录：仅预约所有者显示 */}
+        {/* New editable plan: owner only. */}
         {isOwner && (
         <div className="card mt-4">
           <div className="card-header d-flex justify-content-between align-items-center flex-wrap">
             <span>
               <i className="bi bi-pencil-square me-1"></i>
-              训练计划/记录
+              {t('user.booking.trainingTitle')}
             </span>
             <button
               type="button"
@@ -410,7 +425,7 @@ const BookingDetail = () => {
               onClick={handleSaveTrainingRecords}
               disabled={savingRecords}
             >
-              {savingRecords ? '保存中...' : '确认计划'}
+              {savingRecords ? t('user.booking.saving') : t('user.booking.confirmPlan')}
             </button>
           </div>
           <div className="card-body">
@@ -418,11 +433,11 @@ const BookingDetail = () => {
               <table className="table table-bordered align-middle">
                 <thead className="table-light">
                   <tr>
-                    <th style={{ width: '80px' }}>组数</th>
-                    <th>重量</th>
-                    <th>重复次数</th>
-                    <th style={{ width: '80px' }}>完成</th>
-                    <th>训练动作名称</th>
+                    <th style={{ width: '80px' }}>{t('user.booking.setNumber')}</th>
+                    <th>{t('user.booking.weight')}</th>
+                    <th>{t('user.booking.repetitions')}</th>
+                    <th style={{ width: '80px' }}>{t('user.booking.completed')}</th>
+                    <th>{t('user.booking.exerciseName')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -433,7 +448,7 @@ const BookingDetail = () => {
                         <input
                           type="text"
                           className="form-control form-control-sm"
-                          placeholder="如 20"
+                          placeholder="20"
                           value={row.weight}
                           onChange={(e) => updateTrainingRow(index, 'weight', e.target.value)}
                         />
@@ -442,7 +457,7 @@ const BookingDetail = () => {
                         <input
                           type="text"
                           className="form-control form-control-sm"
-                          placeholder="如 12"
+                          placeholder="12"
                           value={row.repetitions}
                           onChange={(e) => updateTrainingRow(index, 'repetitions', e.target.value)}
                         />
@@ -452,7 +467,7 @@ const BookingDetail = () => {
                           type="button"
                           className={`btn btn-sm ${row.completed ? 'btn-success' : 'btn-outline-secondary'}`}
                           onClick={() => toggleRowCompleted(index)}
-                          title={row.completed ? '已完成' : '点击标记完成'}
+                          title={row.completed ? t('user.booking.completed') : t('user.booking.confirmPlan')}
                         >
                           <i className={`bi ${row.completed ? 'bi-check-lg' : 'bi-circle'}`}></i>
                         </button>
@@ -461,7 +476,7 @@ const BookingDetail = () => {
                         <input
                           type="text"
                           className="form-control form-control-sm"
-                          placeholder="如 卧推"
+                          placeholder="Bench press"
                           value={row.exerciseName}
                           onChange={(e) => updateTrainingRow(index, 'exerciseName', e.target.value)}
                         />
@@ -477,28 +492,28 @@ const BookingDetail = () => {
                 className="btn btn-outline-primary btn-sm"
                 onClick={addTrainingRow}
               >
-                <i className="bi bi-plus-lg me-1"></i>添加一行
+                <i className="bi bi-plus-lg me-1"></i>{t('user.booking.addRow')}
               </button>
             </div>
           </div>
         </div>
         )}
 
-        {/* 分享请求历史 */}
+        {/* {t('user.booking.shareHistory')} */}
         {shareRequests.length > 0 && (
           <div className="card mt-4">
             <div className="card-header">
               <i className="bi bi-clock-history me-1"></i>
-              分享请求历史
+              {t('user.booking.shareHistory')}
             </div>
             <div className="card-body">
               <div className="table-responsive">
                 <table className="table table-striped">
                   <thead>
                     <tr>
-                      <th>请求者</th>
-                      <th>状态</th>
-                      <th>请求时间</th>
+                      <th>{t('user.booking.requester')}</th>
+                      <th>{t('user.booking.status')}</th>
+                      <th>{t('user.booking.requestTime')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -510,11 +525,11 @@ const BookingDetail = () => {
                             request.status === 'pending' ? 'bg-warning' :
                             request.status === 'accepted' ? 'bg-success' : 'bg-danger'
                           }`}>
-                            {request.status === 'pending' ? '待处理' :
-                             request.status === 'accepted' ? '已接受' : '已拒绝'}
+                            {request.status === 'pending' ? t('user.messages.pending') :
+                             request.status === 'accepted' ? t('user.messages.accepted') : t('user.messages.rejected')}
                           </span>
                         </td>
-                        <td>{formatDateTime(request.created_at)}</td>
+                        <td>{formatDateTime(request.created_at, locale)}</td>
                       </tr>
                     ))}
                   </tbody>
